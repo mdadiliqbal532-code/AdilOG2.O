@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f172a">
+    <title>Pages & Pomodoros App</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Caveat:wght@700&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { 
+                        sans: ['Inter', 'sans-serif'],
+                        stylish: ['Caveat', 'cursive'],
+                        phase: ['Oswald', 'sans-serif']
+                    },
+                    colors: {
+                        tomato: '#ff6347',
+                        accent: '#e94560'
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 3s ease-in-out infinite',
+                        'droplet': 'droplet 1.5s infinite',
+                        'glow': 'glow 2s ease-in-out infinite alternate',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        html { background: #0f172a; overscroll-behavior-y: none; }
+        
+        /* Force GPU Acceleration & HD Anti-Aliasing */
+        body {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            background-color: rgba(2, 6, 23, var(--app-bg-opacity)); 
+            background-image: radial-gradient(circle at center, rgba(15, 23, 42, var(--app-bg-opacity)) 0%, rgba(2, 6, 23, var(--app-bg-opacity)) 100%);
+            color: #f8fafc; margin: 0; overflow: hidden; 
+            width: 100vw; 
+            height: 100dvh; 
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        #main-container, #time-display, #animation-container, .animate-pulse, .animate-float { 
+            transform: translateZ(0); 
+            will-change: transform, opacity; 
+        }
+        
+        /* Remove 300ms tap delay on mobile */
+        button, input, select, .cursor-pointer { touch-action: manipulation; }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, calc(var(--app-bg-opacity) * 0.5)); }
+        ::-webkit-scrollbar-thumb { background: rgba(51, 65, 85, var(--app-bg-opacity)); border-radius: 4px; }
+
+        .active-session { border-left: 4px solid #ff6347; background-color: rgba(255, 99, 71, 0.15); box-shadow: inset 0 0 20px rgba(255,99,71,0.05); }
+        .completed-session { opacity: 0.4; text-decoration: line-through; }
+        
+        :root { --app-bg-opacity: 1; --stealth-scale: 1.15; }
+        
+        #main-container { background-color: rgba(15, 23, 42, var(--app-bg-opacity)) !important; box-shadow: 0 0 80px rgba(0,0,0, calc(var(--app-bg-opacity) * 0.6)) !important; border-color: rgba(51, 65, 85, calc(var(--app-bg-opacity) * 0.5)) !important; }
+        #left-panel { background: linear-gradient(to bottom right, rgba(15, 23, 42, var(--app-bg-opacity)), rgba(10, 15, 29, var(--app-bg-opacity))) !important; border-color: rgba(30, 41, 59, var(--app-bg-opacity)) !important; }
+        #right-panel { background-color: rgba(3, 7, 18, var(--app-bg-opacity)) !important; border-color: rgba(30, 41, 59, var(--app-bg-opacity)) !important; }
+
+        body.high-transparency h1, body.high-transparency h2, body.high-transparency h3, 
+        body.high-transparency p, body.high-transparency span:not(#time-display),
+        body.high-transparency button, body.high-transparency input, body.high-transparency div {
+            text-shadow: 0 4px 15px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.6) !important; color: #ffffff;
+        }
+        body.high-transparency svg { filter: drop-shadow(0 4px 10px rgba(0,0,0,0.8)) !important; }
+
+        #start-btn, #pause-btn { background-color: rgba(255, 99, 71, var(--app-bg-opacity)) !important; box-shadow: 0 0 20px rgba(255, 99, 71, calc(var(--app-bg-opacity) * 0.4)) !important; }
+        .overtime-glow { text-shadow: 0 0 40px rgba(239, 68, 68, 0.5) !important; color: #ef4444 !important; }
+    </style>
+</head>
+
+<body class="flex items-center justify-center w-screen h-[100dvh] p-0 sm:p-2 lg:p-6 box-border transition-colors duration-700">
+    <div id="main-container" class="w-full h-full max-w-[1800px] max-h-[1000px] bg-slate-900 rounded-none sm:rounded-[2rem] lg:rounded-[2.5rem] border-0 sm:border border-slate-700/50 shadow-none sm:shadow-[0_0_80px_rgba(0,0,0,0.6)] flex flex-col lg:flex-row overflow-hidden relative transition-all duration-700">
+
+        <!-- Left Side: MAIN TIMER -->
+        <div id="left-panel" class="w-full lg:w-[55%] flex-1 lg:h-full flex flex-col items-center justify-center relative bg-gradient-to-br from-slate-900 to-[#0a0f1d] border-b lg:border-b-0 lg:border-r border-slate-800 p-4 lg:p-12 z-10 overflow-y-auto no-scrollbar">
+            
+            <div id="branding-div" class="text-center mb-2 sm:mb-6 lg:mb-8 w-full flex flex-col items-center justify-center gap-1 sm:gap-2 pt-4 sm:pt-0">
+                <div class="welcome-text text-[11px] sm:text-base lg:text-xl font-extrabold font-sans tracking-[0.4em] uppercase text-blue-400 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] mb-1">Welcome To</div>
+                <h1 class="text-3xl sm:text-5xl lg:text-6xl font-stylish tracking-wide text-white drop-shadow-lg leading-tight m-0 flex items-center justify-center gap-2">
+                    Pages & Pomodoros <span class="text-tomato animate-pulse-slow font-sans text-2xl sm:text-4xl lg:text-5xl pb-1">🍅</span>
+                </h1>
+            </div>
+
+            <div id="current-phase-display" class="bg-slate-800/80 px-6 lg:px-8 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm lg:text-base font-bold text-tomato mb-2 lg:mb-8 border border-slate-700 shadow-inner tracking-widest uppercase font-phase">Ready to Start</div>
+            
+            <div id="timer-wrapper" class="relative w-full mb-3 sm:mb-4 lg:mb-10 flex flex-col items-center justify-center cursor-pointer active:scale-95 transition-transform">
+                <div id="animation-container" class="h-10 sm:h-16 lg:h-24 mb-1 flex items-center justify-center pointer-events-none">
+                    <div id="anim-study" class="hidden text-tomato animate-float"><svg class="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 animate-glow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477-4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg></div>
+                    <div id="anim-break" class="hidden text-blue-400 relative w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 flex items-center justify-center"><svg class="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 absolute -top-3 animate-droplet text-blue-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.23.615 1.23.616a1 1 0 01-.894 1.789l-1.6-.8L11 11.323V18a1 1 0 11-2 0v-6.677l-3.954-1.582-1.6.8a1 1 0 11-.894-1.79l1.23-.615-1.23-.616a1 1 0 01.894-1.789l1.6.8L9 4.323V3a1 1 0 011-1z" clip-rule="evenodd" /></svg><svg class="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 absolute bottom-0 animate-glow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v10a4 4 0 004 4h8a4 4 0 004-4V4H4z M10 4v6m4-6v6"></path></svg></div>
+                </div>
+                <span id="time-display" class="text-[25vw] sm:text-[15vw] md:text-9xl lg:text-[11rem] leading-none font-bold font-mono tracking-tighter text-white drop-shadow-[0_0_40px_rgba(255,255,255,0.15)] tabular-nums transition-colors duration-300">00:00</span>
+                <span id="session-type" class="text-sm sm:text-lg lg:text-xl font-semibold text-slate-300 mt-1 sm:mt-2 lg:mt-4 uppercase tracking-widest text-center px-4 pointer-events-none">Select Session</span>
+            </div>
+
+            <div id="controls-container" class="flex flex-wrap justify-center items-center gap-2 sm:gap-3 lg:gap-5 mb-3 lg:mb-6 w-full px-2">
+                <button id="undo-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2.5 sm:p-3 lg:p-4 rounded-full transition-all active:scale-90 border border-slate-700 disabled:opacity-30 flex-shrink-0" title="Undo Phase"><svg class="w-5 h-5 lg:w-6 lg:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg></button>
+                <button id="start-btn" class="text-white font-bold p-4 sm:p-5 lg:p-6 rounded-full transition-all active:scale-90 flex items-center justify-center flex-shrink-0" title="Start Session"><svg class="w-8 h-8 lg:w-10 lg:h-10 ml-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg></button>
+                <button id="pause-btn" class="hidden text-white font-bold p-4 sm:p-5 lg:p-6 rounded-full transition-all active:scale-90 flex items-center justify-center flex-shrink-0" title="Pause Session"><svg class="w-8 h-8 lg:w-10 lg:h-10" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg></button>
+                <button id="complete-main-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold p-4 lg:p-5 rounded-full transition-all border border-emerald-500/50 active:scale-90 shadow-[0_0_20px_rgba(16,185,129,0.3)] hidden items-center justify-center flex-shrink-0" title="Mark Session Complete"><svg class="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></button>
+                <button id="reset-phase-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2.5 sm:p-3 lg:p-4 rounded-full transition-all active:scale-90 border border-slate-700 flex-shrink-0" title="Restart Timer"><svg class="w-5 h-5 lg:w-6 lg:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg></button>
+                <button id="skip-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2.5 sm:p-3 lg:p-4 rounded-full transition-all active:scale-90 border border-slate-700 disabled:opacity-30 flex-shrink-0" title="Skip Phase"><svg class="w-5 h-5 lg:w-6 lg:h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414l2-2a1 1 0 000-1.414l-2-2z" clip-rule="evenodd"></path></svg></button>
+            </div>
+            
+            <div id="utility-links" class="mt-1 sm:mt-2 lg:mt-4 flex flex-wrap items-center justify-center gap-3 sm:gap-4 lg:gap-5 pb-2">
+                 <button id="task-manager-btn" class="bg-purple-900/30 text-purple-400 hover:bg-purple-800/50 border border-purple-800/50 transition-colors flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-full font-bold shadow-[0_0_15px_rgba(147,51,234,0.3)] text-lg sm:text-xl lg:text-2xl active:scale-90" title="Backlog Vault">📚</button>
+                 <button id="stats-btn" class="bg-amber-900/20 text-amber-400 hover:bg-amber-800/40 border border-amber-800/50 transition-colors flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-full font-bold shadow-lg text-lg sm:text-xl lg:text-2xl active:scale-90" title="Analytics">📊</button>
+                 <button id="edit-schedule-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-full font-bold shadow-lg text-lg sm:text-xl lg:text-2xl active:scale-90" title="Settings">⚙️</button>
+                 <button id="emergency-break-btn" class="bg-red-900/50 text-red-400 border border-red-800/50 hover:bg-red-800/60 transition-colors flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-full font-bold shadow-[0_0_15px_rgba(220,38,38,0.4)] animate-pulse text-lg sm:text-xl lg:text-2xl active:scale-90" title="Emergency">🚨</button>
+            </div>
+        </div>
+
+        <div id="right-panel" class="w-full lg:w-[45%] h-[40%] sm:h-[45%] min-h-[220px] lg:min-h-0 lg:h-full bg-[#030712] p-3 sm:p-4 lg:p-8 flex flex-col relative border-t lg:border-t-0 lg:border-l border-slate-800 transition-all duration-500 origin-right">
+            <h2 class="text-sm sm:text-base lg:text-lg font-bold text-slate-200 mb-2 sm:mb-3 border-b border-slate-800 pb-2 flex justify-between items-center">
+                <span>Live Protocol</span>
+                <span id="session-count-badge" class="text-[9px] sm:text-[10px] lg:text-xs font-bold text-slate-400 bg-slate-800 px-2 py-1 rounded-lg uppercase tracking-wider">0 Sessions</span>
+            </h2>
+            
+            <div id="schedule-container" class="flex-1 overflow-y-auto pr-1 sm:pr-2 flex flex-col gap-1.5 sm:gap-2 scroll-smooth mb-2"></div>
+            
+            <div id="quick-load-container" class="mt-auto bg-slate-950/60 border border-slate-800 p-2 sm:p-3 rounded-xl shrink-0 flex flex-col gap-1.5 sm:gap-2 relative z-20">
+                <div class="flex justify-between items-center mb-0.5">
+                    <span class="text-[9px] sm:text-[10px] lg:text-xs font-bold text-slate-400 uppercase tracking-wider">🗓️ Daily Plan Loader</span>
+                </div>
+                <div class="flex gap-1 overflow-x-auto no-scrollbar w-full pb-1" id="main-day-tabs">
+                    <button type="button" class="main-day-tab flex-1 min-w-[30px] sm:min-w-[35px] bg-slate-800 text-slate-300 hover:bg-slate-700 text-[9px] sm:text-[10px] lg:text-xs px-1 py-1.5 rounded-md font-bold active:scale-90" data-day="1">Mon</button>
+                    <button type="button" class="main-day-tab flex-1 min-w-[30px] sm:min-w-[35px] bg-slate-800 text-slate-300 hover:bg-slate-700 text-[9px] sm:text-[10px] lg:text-xs px-1 py-1.5 rounded-md font-bold active:scale-90" data-day="2">Tue</button>
+                    <button type="button" class="main-day-tab flex-1 min-w-[30px] sm:min-w-[35px] bg-slate-800 text-slate-300 hover:bg-slate-700 text-[9px] sm:text-[10px] lg:text-xs px-1 py-1.5 rounded-md font-bold active:scale-90" data-day="3">Wed</button>
+                    <button type="button" class="main-day-tab flex-1 min-w-[30px] sm:min-w-[35px] bg-slate-800 text-slate-300 hover:bg-slate-700 text-[9px] sm:text-[10px] lg:text-xs px-1 py-1.5 rounded-md font-bold active:scale-90" data-day="4">Thu</button>
+                    <button type="button" class="main-day-tab flex-1 min-w-[30px] sm:min-w-[35px] bg-slate-800 text-slate-300 hover:bg-slate-700 text-[9px] sm:text-[10px] lg:text-xs px-1 py-1.5 rounded-md font-bold active:scale-90" data-day="5">Fri</button>
+                    <button type="button" class="main-day-tab flex-1 min-w-[30px] sm:min-w-[35px] bg-slate-800 text-slate-300 hover:bg-slate-700 text-[9px] sm:text-[10px] lg:text-xs px-1 py-1.5 rounded-md font-bold active:scale-90" data-day="6">Sat</button>
+                    <button type="button" class="main-day-tab flex-1 min-w-[30px] sm:min-w-[35px] bg-slate-800 text-slate-300 hover:bg-slate-700 text-[9px] sm:text-[10px] lg:text-xs px-1 py-1.5 rounded-md font-bold active:scale-90" data-day="0">Sun</button>
+                </div>
+                <button id="main-new-day-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-bold shadow-md active:scale-95 flex items-center justify-center gap-1 sm:gap-2">
+                    <span>🌅</span> Load & Start New Day
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MASTER SETTINGS MODAL -->
+    <div id="settings-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[90] flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-2xl w-full max-w-3xl max-h-[95dvh] flex flex-col">
+            <div class="flex justify-between items-center mb-3 sm:mb-4 border-b border-slate-800 pb-2 shrink-0">
+                <h2 class="text-lg sm:text-xl lg:text-2xl font-extrabold text-white flex items-center gap-2">⚙️ Settings</h2>
+                <button id="close-settings-btn" class="text-slate-400 hover:text-white bg-slate-800 rounded-full p-1.5 sm:p-2 active:scale-90">✕</button>
+            </div>
+            
+            <div class="overflow-y-auto pr-1 sm:pr-2 flex-1 space-y-3 lg:space-y-4">
+
+                <!-- Telegram Notification Settings -->
+                <div class="bg-blue-950/20 p-3 lg:p-4 rounded-xl border border-blue-900/50 space-y-2">
+                    <div class="flex justify-between items-center mb-1">
+                        <h3 class="text-[10px] sm:text-xs font-bold text-blue-400 flex items-center gap-1"><span>✈️</span> Telegram God-Mode Sync</h3>
+                        <label class="flex items-center cursor-pointer">
+                            <div class="relative">
+                                <input type="checkbox" id="tg-live-sync-toggle" class="sr-only">
+                                <div class="block bg-slate-800 w-8 sm:w-10 h-5 sm:h-6 rounded-full border border-slate-700 transition-colors duration-300"></div>
+                                <div class="dot absolute left-1 top-1 bg-slate-400 w-3 sm:w-4 h-3 sm:h-4 rounded-full transition transform duration-300"></div>
+                            </div>
+                            <span class="ml-2 text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live Dashboard</span>
+                        </label>
+                        <style> input:checked ~ .block { background-color: #3b82f6; border-color: #2563eb; } input:checked ~ .dot { transform: translateX(100%); background-color: #fff; } </style>
+                    </div>
+                    <input type="password" id="tg-token-input" placeholder="Bot Token" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
+                    <input type="password" id="tg-chatid-input" placeholder="Chat ID" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
+                </div>
+                
+                <!-- Weekly Builder with Auto-Sync Engine -->
+                <div class="bg-slate-950/80 border border-slate-700 rounded-xl p-3 sm:p-4">
+                    <h3 class="text-[10px] sm:text-xs font-bold text-white mb-2 uppercase tracking-wider">🗓️ Weekly Template Editor</h3>
+                    <div class="flex gap-1 overflow-x-auto no-scrollbar mb-2 w-full" id="template-day-tabs">
+                        <button type="button" class="day-tab-btn flex-1 min-w-[35px] bg-slate-800 text-slate-300 text-[9px] sm:text-[10px] px-1 py-1.5 rounded-lg font-bold" data-day="1">Mon</button>
+                        <button type="button" class="day-tab-btn flex-1 min-w-[35px] bg-slate-800 text-slate-300 text-[9px] sm:text-[10px] px-1 py-1.5 rounded-lg font-bold" data-day="2">Tue</button>
+                        <button type="button" class="day-tab-btn flex-1 min-w-[35px] bg-slate-800 text-slate-300 text-[9px] sm:text-[10px] px-1 py-1.5 rounded-lg font-bold" data-day="3">Wed</button>
+                        <button type="button" class="day-tab-btn flex-1 min-w-[35px] bg-slate-800 text-slate-300 text-[9px] sm:text-[10px] px-1 py-1.5 rounded-lg font-bold" data-day="4">Thu</button>
+                        <button type="button" class="day-tab-btn flex-1 min-w-[35px] bg-slate-800 text-slate-300 text-[9px] sm:text-[10px] px-1 py-1.5 rounded-lg font-bold" data-day="5">Fri</button>
+                        <button type="button" class="day-tab-btn flex-1 min-w-[35px] bg-slate-800 text-slate-300 text-[9px] sm:text-[10px] px-1 py-1.5 rounded-lg font-bold" data-day="6">Sat</button>
+                        <button type="button" class="day-tab-btn flex-1 min-w-[35px] bg-slate-800 text-slate-300 text-[9px] sm:text-[10px] px-1 py-1.5 rounded-lg font-bold" data-day="0">Sun</button>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-2 mb-2 p-2 bg-slate-900 border border-slate-800 rounded-lg">
+                        <!-- ANDROID FIX: Restored Native Select Dropdown -->
+                        <select id="new-sess-type" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-xs font-bold text-white focus:outline-none focus:border-blue-500 w-full sm:w-24">
+                            <option value="work">🧠 Study</option>
+                            <option value="break">💧 Break</option>
+                        </select>
+                        <div class="flex gap-1.5 w-full sm:w-auto">
+                            <input type="text" id="new-sess-title" placeholder="E.g. Bio NCERT" class="flex-1 bg-slate-950 border border-slate-700 rounded-md px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500">
+                            <input type="number" id="new-sess-dur" placeholder="Min" class="w-14 bg-slate-950 border border-slate-700 rounded-md px-1 py-1 text-xs text-center text-white font-mono focus:outline-none focus:border-blue-500">
+                            <button id="add-sess-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1 rounded-md text-xs active:scale-90 transition-colors">Add</button>
+                        </div>
+                    </div>
+                    <div id="settings-list" class="space-y-1.5 max-h-[150px] overflow-y-auto pr-1 border-t border-slate-800 pt-2"></div>
+                </div>
+            </div>
+
+            <!-- Footer Buttons Pinned to Bottom -->
+            <div class="flex justify-between items-center gap-2 sm:gap-4 border-t border-slate-800 pt-3 mt-3 shrink-0">
+                <button id="factory-reset-btn" class="text-red-500 hover:text-red-400 text-[9px] sm:text-[10px] font-bold uppercase p-1 transition-colors">🗑️ Nuke</button>
+                <button id="save-settings-btn" class="bg-tomato hover:bg-red-500 text-white px-6 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-lg active:scale-95 transition-colors">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TASK MANAGER VAULT -->
+    <div id="task-manager-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[140] flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-slate-900 border border-purple-900/50 rounded-2xl sm:rounded-3xl shadow-[0_0_50px_rgba(147,51,234,0.15)] w-full max-w-4xl max-h-[95dvh] flex flex-col relative">
+            <div class="flex justify-between items-center p-3 sm:p-5 border-b border-slate-800 shrink-0 bg-slate-900/80">
+                <h2 class="text-lg sm:text-xl font-extrabold text-white flex items-center gap-2"><span class="text-purple-500">📚</span> Task Vault</h2>
+                <button id="close-task-btn" class="text-slate-400 hover:text-white bg-slate-800 rounded-full p-1.5 active:scale-90 transition-colors">✕</button>
+            </div>
+            
+            <div class="flex px-2 sm:px-4 pt-2 gap-1 overflow-x-auto no-scrollbar border-b border-slate-800 shrink-0 bg-slate-900" id="task-tabs">
+                <button class="task-tab-btn active px-2 sm:px-4 py-2 text-[10px] sm:text-xs font-bold border-b-2 border-purple-500 text-purple-400 whitespace-nowrap transition-colors" data-cat="backlog">📦 Backlogs</button>
+                <button class="task-tab-btn px-2 sm:px-4 py-2 text-[10px] sm:text-xs font-bold border-b-2 border-transparent text-slate-500 whitespace-nowrap transition-colors" data-cat="revision">🔁 Revision</button>
+                <button class="task-tab-btn px-2 sm:px-4 py-2 text-[10px] sm:text-xs font-bold border-b-2 border-transparent text-slate-500 whitespace-nowrap transition-colors" data-cat="homework">📝 Daily HW</button>
+                <button class="task-tab-btn px-2 sm:px-4 py-2 text-[10px] sm:text-xs font-bold border-b-2 border-transparent text-slate-500 whitespace-nowrap ml-auto transition-colors" data-cat="progress">📊 Progress</button>
+            </div>
+            
+            <div id="add-task-section" class="p-3 sm:p-4 bg-slate-950/50 shrink-0">
+                <form id="add-task-form" class="flex flex-col sm:flex-row gap-2">
+                    <!-- ANDROID FIX: Restored Native Select Dropdown -->
+                    <select id="task-subject-input" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-2 text-xs font-bold text-white focus:outline-none focus:border-purple-500 w-full sm:w-32">
+                        <option value="Physics">🔵 Physics</option>
+                        <option value="Chemistry">🟠 Chemistry</option>
+                        <option value="Biology">🟢 Biology</option>
+                        <option value="Other">⚪ Other</option>
+                    </select>
+                    <div class="flex gap-2 w-full">
+                        <input type="text" id="task-title-input" placeholder="Chapter Name..." required class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500">
+                        <button type="submit" class="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2 rounded-lg text-xs active:scale-95 shrink-0 transition-colors shadow-lg">Add</button>
+                    </div>
+                </form>
+            </div>
+            
+            <div id="task-list-section" class="flex-1 overflow-y-auto p-3 sm:p-4 bg-slate-900">
+                <div id="active-tasks-container" class="space-y-1.5 mb-4"></div>
+                <div class="border-t border-slate-800 pt-3">
+                    <button id="toggle-completed-tasks-btn" class="text-[10px] font-bold text-slate-500 hover:text-slate-300 transition-colors uppercase w-full text-left mb-2">▶ Show Completed (<span id="completed-count">0</span>)</button>
+                    <div id="completed-tasks-container" class="space-y-1.5 hidden opacity-60"></div>
+                </div>
+            </div>
+            <div id="task-progress-section" class="hidden flex-1 overflow-y-auto p-4 bg-slate-900"></div>
+        </div>
+    </div>
+
+    <!-- STATS MODAL -->
+    <div id="stats-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[120] flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 sm:p-6 shadow-2xl w-full max-w-2xl max-h-[95dvh] flex flex-col">
+            <div class="flex justify-between items-center mb-3 border-b border-slate-800 pb-2 shrink-0">
+                <h2 class="text-lg sm:text-xl font-extrabold text-white flex items-center gap-2">📊 Analytics</h2>
+                <button id="close-stats-btn" class="text-slate-400 hover:text-white bg-slate-800 rounded-full p-1.5 active:scale-90 transition-colors">✕</button>
+            </div>
+            <div class="flex-1 overflow-y-auto no-scrollbar">
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                    <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-3 text-center">
+                        <p class="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Today's Focus</p>
+                        <p id="stat-today-mins" class="text-2xl sm:text-3xl font-mono font-bold text-emerald-400">0<span class="text-xs text-slate-500 ml-1">m</span></p>
+                    </div>
+                    <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-3 text-center">
+                        <p class="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Sessions</p>
+                        <p id="stat-today-sessions" class="text-2xl sm:text-3xl font-mono font-bold text-blue-400">0</p>
+                    </div>
+                </div>
+                <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 mb-4">
+                    <h3 class="text-[10px] font-bold text-slate-300 uppercase flex justify-between mb-2"><span>Last 7 Days</span><span class="text-blue-400 font-mono" id="stat-weekly-total">0m Total</span></h3>
+                    <div id="stats-chart-container" class="w-full h-24 sm:h-32 flex items-center justify-center"></div>
+                </div>
+            </div>
+            <div class="flex justify-between items-center border-t border-slate-800 pt-3 shrink-0">
+                <button id="send-tg-btn" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-[10px] sm:text-xs font-bold active:scale-95 transition-colors shadow-lg">✈️ Send to Telegram</button>
+                <button id="history-report-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-[10px] sm:text-xs font-bold active:scale-95 transition-colors shadow-lg">30-Day Log</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 30-DAY LOG MODAL -->
+    <div id="history-report-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[130] flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-slate-900 border border-indigo-900/50 rounded-2xl p-4 shadow-2xl w-full max-w-xl max-h-[95dvh] flex flex-col">
+            <div class="flex justify-between items-center mb-3 border-b border-slate-800 pb-2 shrink-0">
+                <h2 class="text-lg font-extrabold text-white">🗓️ 30-Day Log</h2>
+                <button id="close-history-btn" class="text-slate-400 hover:text-white bg-slate-800 rounded-full p-1.5 active:scale-90 transition-colors">✕</button>
+            </div>
+            <div id="history-report-content" class="flex-1 overflow-y-auto space-y-3 pr-1"></div>
+            <div class="mt-3 border-t border-slate-800 pt-2 shrink-0 text-center"><p id="history-overall-stats" class="text-indigo-400 font-bold font-mono text-[10px] sm:text-xs bg-indigo-950/50 py-2 rounded-lg"></p></div>
+        </div>
+    </div>
+
+    <!-- CONFIRM MODAL -->
+    <div id="confirm-modal" class="hidden fixed inset-0 bg-slate-950/90 z-[150] flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5 shadow-2xl w-full max-w-sm text-center">
+            <div class="text-3xl mb-2">⚠️</div><h2 class="text-lg font-bold text-white mb-2">Confirm</h2>
+            <p id="confirm-text" class="text-xs text-slate-300 mb-5">Proceed?</p>
+            <div class="flex gap-2">
+                <button id="confirm-no-btn" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-2 rounded-lg text-xs font-bold transition-colors">Cancel</button>
+                <button id="confirm-yes-btn" class="flex-1 bg-tomato hover:bg-red-500 text-white py-2 rounded-lg text-xs font-bold transition-colors shadow-lg">Yes</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Bulletproof Storage Wrappers
+        function safeGet(key, defaultValue) { try { return localStorage.getItem(key) || defaultValue; } catch(e) { return defaultValue; } }
+        function safeSet(key, value) { try { localStorage.setItem(key, value); } catch(e) {} }
+        function safeRemove(key) { try { localStorage.removeItem(key); } catch(e) {} }
+
+        // Core State & Data
+        const cleanSlate = [
+            { id: 1, type: 'work', title: 'Deep Study Block', duration: 50 * 60 },
+            { id: 2, type: 'break', title: 'Recovery Break', duration: 10 * 60 }
+        ];
+        let schedule = JSON.parse(safeGet('pages_pomodoro_schedule_v9', JSON.stringify(cleanSlate)));
+        let weeklyTemplates = JSON.parse(safeGet('pages_pomodoro_weekly_v9', null));
+        
+        if (!weeklyTemplates) {
+            weeklyTemplates = {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[]};
+            for(let i=0; i<=6; i++) weeklyTemplates[i] = JSON.parse(JSON.stringify(schedule));
+            safeSet('pages_pomodoro_weekly_v9', JSON.stringify(weeklyTemplates));
+        }
+        
+        let activeTemplateDay = new Date().getDay();
+        let activeMainDay = new Date().getDay();
+        let currentStepIndex = 0, timeLeft = 0, timerInterval = null, isRunning = false;
+        let targetEndTime = 0, accumulatedStudyTime = 0, isOvertime = false;
+        let lastRenderedTime = -1;
+        
+        // DOM Elements
+        const timeDisplay = document.getElementById('time-display');
+        const sessionTypeDisplay = document.getElementById('session-type');
+        const scheduleContainer = document.getElementById('schedule-container');
+        const startBtn = document.getElementById('start-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+
+        // Wiring Buttons
+        startBtn?.addEventListener('click', startTimer);
+        pauseBtn?.addEventListener('click', stopTimer);
+        document.getElementById('skip-btn')?.addEventListener('click', () => { if (currentStepIndex < schedule.length) jumpToStep(currentStepIndex + 1); });
+        document.getElementById('undo-btn')?.addEventListener('click', () => { if (currentStepIndex > 0) jumpToStep(currentStepIndex - 1); });
+        document.getElementById('reset-phase-btn')?.addEventListener('click', () => showCustomConfirm("Restart current session timer?", () => jumpToStep(currentStepIndex)));
+        document.getElementById('complete-main-btn')?.addEventListener('click', completeSession); 
+
+        const confirmModal = document.getElementById('confirm-modal');
+        let pendingConfirmAction = null;
+        function showCustomConfirm(msg, action) { document.getElementById('confirm-text').textContent = msg; pendingConfirmAction = action; confirmModal?.classList.remove('hidden'); }
+        document.getElementById('confirm-no-btn')?.addEventListener('click', () => { confirmModal.classList.add('hidden'); pendingConfirmAction = null; });
+        document.getElementById('confirm-yes-btn')?.addEventListener('click', () => { if (pendingConfirmAction) pendingConfirmAction(); confirmModal.classList.add('hidden'); pendingConfirmAction = null; });
+
+        function persistState() { safeSet('pages_pomodoro_app_state_v9', JSON.stringify({ currentStepIndex, timeLeft, isRunning, targetEndTime, accumulatedStudyTime, isOvertime })); }
+
+        window.quickComplete = function(index) { 
+            if (index === currentStepIndex) completeSession(); 
+            else { schedule[index].status = 'completed'; safeSet('pages_pomodoro_schedule_v9', JSON.stringify(schedule)); renderSchedule(); updateTgLiveStatus('completed'); } 
+        };
+        window.quickDelete = function(index) { 
+            showCustomConfirm("Delete this session?", () => { 
+                schedule.splice(index, 1); safeSet('pages_pomodoro_schedule_v9', JSON.stringify(schedule)); 
+                if (index < currentStepIndex) currentStepIndex--; 
+                else if (index === currentStepIndex) { stopTimer(); loadStep(Math.min(currentStepIndex, Math.max(0, schedule.length - 1))); } 
+                renderSchedule(); 
+            }); 
+        };
+
+        function renderSchedule() {
+            if(!scheduleContainer) return;
+            scheduleContainer.innerHTML = '';
+            if (schedule.length === 0) { scheduleContainer.innerHTML = `<div class="text-center text-slate-500 italic p-2 text-xs">No sessions active.</div>`; return; }
+            document.getElementById('session-count-badge').textContent = `${schedule.filter(s => s.status !== 'completed' && s.status !== 'skipped').length} Remaining`;
+
+            schedule.forEach((item, index) => {
+                const div = document.createElement('div');
+                let baseClasses = "group p-2 rounded-lg flex justify-between items-center transition-all border border-slate-800/60 cursor-pointer ";
+                if (index === currentStepIndex) { baseClasses += "active-session bg-slate-800/90 text-white shadow-md border-tomato/40 "; div.style.order = "0"; } 
+                else if (item.status === 'completed' || item.status === 'skipped') { baseClasses += "completed-session text-slate-500 bg-slate-900/40 opacity-50 "; div.style.order = "100"; } 
+                else { baseClasses += "text-slate-400 bg-slate-900/60 "; div.style.order = "0"; }
+
+                div.className = baseClasses; div.onclick = () => { if (index !== currentStepIndex) jumpToStep(index); };
+                const mins = Math.floor(item.duration / 60);
+                div.innerHTML = `<div class="flex items-center gap-1.5 overflow-hidden"><span class="text-sm shrink-0">${item.type === 'work' ? '🧠' : '💧'}</span><span class="font-semibold text-[10px] sm:text-xs truncate">${item.title}</span></div><div class="flex items-center gap-1 shrink-0"><span class="text-[9px] font-mono bg-slate-950 px-1.5 py-0.5 rounded text-slate-400 border border-slate-800">${mins}m</span></div>`;
+                scheduleContainer.appendChild(div);
+            });
+            const activeEl = document.querySelector('.active-session'); if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function loadStep(index, preserveState = false) {
+            currentStepIndex = index; isOvertime = false; timeDisplay?.classList.remove('text-red-500');
+            if (currentStepIndex >= schedule.length) {
+                currentStepIndex = schedule.length; timeLeft = 0; updateDisplay(); sessionTypeDisplay.textContent = "Done";
+                document.getElementById('current-phase-display').textContent = "DAY COMPLETE";
+                stopTimer(); startBtn.classList.add('hidden'); pauseBtn.classList.add('hidden'); document.getElementById('complete-main-btn').classList.add('hidden');
+                renderSchedule(); persistState(); sendTelegramReport(true); return;
+            }
+
+            const currentSession = schedule[currentStepIndex];
+            if(!preserveState) timeLeft = currentSession.duration;
+            sessionTypeDisplay.textContent = currentSession.title;
+            document.getElementById('complete-main-btn').classList.add('hidden'); startBtn.classList.remove('hidden'); pauseBtn.classList.add('hidden');
+            
+            const pDisp = document.getElementById('current-phase-display');
+            pDisp.textContent = currentSession.type === 'work' ? "STUDY PHASE" : "BREAK PHASE"; 
+            pDisp.className = currentSession.type === 'work' ? "font-phase bg-tomato/10 px-4 py-1.5 rounded-full text-xs font-bold text-tomato mb-2 border border-tomato/30" : "font-phase bg-blue-900/30 px-4 py-1.5 rounded-full text-xs font-bold text-blue-400 mb-2 border border-blue-800/50";
+            
+            if (currentSession.type === 'work') { document.getElementById('anim-study')?.classList.remove('hidden'); document.getElementById('anim-break')?.classList.add('hidden'); } 
+            else { document.getElementById('anim-study')?.classList.add('hidden'); document.getElementById('anim-break')?.classList.remove('hidden'); }
+
+            lastRenderedTime = -1; updateDisplay(); renderSchedule();
+            if (currentStepIndex > 0 && !isRunning && !preserveState) playAlarmSound(); persistState();
+        }
+
+        function updateDisplay() {
+            if (timeLeft === lastRenderedTime && !isOvertime) return; 
+            lastRenderedTime = timeLeft;
+            const m = Math.floor(timeLeft / 60); const s = timeLeft % 60;
+            timeDisplay.textContent = `${isOvertime ? '+' : ''}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function timerCoreTick() {
+            if (!isRunning) return;
+            const remaining = Math.round((targetEndTime - Date.now()) / 1000);
+            if (remaining <= 0) {
+                if (!isOvertime) { isOvertime = true; playAlarmSound(); timeDisplay.classList.add('text-red-500'); pauseBtn.classList.add('hidden'); document.getElementById('complete-main-btn').classList.remove('hidden'); updateTgLiveStatus('overtime'); }
+                timeLeft = Math.abs(remaining); updateDisplay(); persistState();
+            } else {
+                isOvertime = false; timeDisplay.classList.remove('text-red-500');
+                if (schedule[currentStepIndex]?.type === 'work' && timeLeft > remaining) accumulatedStudyTime += (timeLeft - remaining);
+                timeLeft = remaining; updateDisplay(); persistState();
+            }
+        }
+
+        function startTimer() {
+            if (isRunning || currentStepIndex >= schedule.length) return; 
+            try { if (fallbackCtx && fallbackCtx.state === 'suspended') fallbackCtx.resume(); } catch(e){}
+            isRunning = true; startBtn.classList.add('hidden');
+            if(isOvertime) document.getElementById('complete-main-btn').classList.remove('hidden'); else pauseBtn.classList.remove('hidden');
+            if (isOvertime) targetEndTime = Date.now() - (timeLeft * 1000); else targetEndTime = Date.now() + (timeLeft * 1000);
+            clearInterval(timerInterval); timerInterval = setInterval(timerCoreTick, 250); persistState(); updateTgLiveStatus('started');
+        }
+
+        function stopTimer() {
+            if (!isRunning) return; isRunning = false; startBtn.classList.remove('hidden'); pauseBtn.classList.add('hidden');
+            clearInterval(timerInterval); persistState(); updateTgLiveStatus('paused');
+        }
+
+        let fallbackCtx = null, activeAlarmNodes = [];
+        function playAlarmSound() {
+            try {
+                if (!fallbackCtx) fallbackCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (fallbackCtx.state === 'suspended') fallbackCtx.resume();
+                activeAlarmNodes.forEach(n => { try{ n.stop(); }catch(e){} }); activeAlarmNodes = [];
+                for(let i=0; i<6; i++) { setTimeout(() => { 
+                    try { const osc = fallbackCtx.createOscillator(); const gain = fallbackCtx.createGain(); osc.connect(gain); gain.connect(fallbackCtx.destination); osc.type = 'square'; osc.frequency.setValueAtTime(880, fallbackCtx.currentTime); gain.gain.setValueAtTime(0.3, fallbackCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, fallbackCtx.currentTime + 0.2); osc.start(fallbackCtx.currentTime); osc.stop(fallbackCtx.currentTime + 0.2); activeAlarmNodes.push(osc); } catch(e){} 
+                }, i * 300); }
+            } catch(e) {}
+        }
+
+        window.syncTemplateToLive = function() {
+            if (activeTemplateDay !== activeMainDay) return; 
+            let currentPlan = weeklyTemplates[activeTemplateDay] || [];
+            let newSchedule = [];
+            
+            for(let i=0; i<currentPlan.length; i++) {
+                let existing = schedule[i];
+                if (existing) {
+                    existing.title = currentPlan[i].title;
+                    existing.duration = currentPlan[i].duration;
+                    existing.type = currentPlan[i].type;
+                    newSchedule.push(existing);
+                } else {
+                    newSchedule.push({...currentPlan[i]});
+                }
+            }
+            
+            schedule = newSchedule;
+            safeSet('pages_pomodoro_schedule_v9', JSON.stringify(schedule));
+            renderSchedule();
+            
+            if (currentStepIndex >= schedule.length && schedule.length > 0) {
+                loadStep(Math.max(0, schedule.length - 1));
+            } else if (schedule.length > 0) {
+                if (sessionTypeDisplay && schedule[currentStepIndex]) sessionTypeDisplay.textContent = schedule[currentStepIndex].title;
+            }
+        };
+
+        function flushSessionStats(isWorkComplete = false) {
+            let stats = JSON.parse(safeGet('pages_pomodoro_stats_v9', '{"history":{}}')); let today = new Date().toISOString().split('T')[0];
+            if (!stats.history[today]) stats.history[today] = { mins: 0, sessions: 0 };
+            if (accumulatedStudyTime > 0) { stats.history[today].mins += Math.round(accumulatedStudyTime / 60); accumulatedStudyTime = 0; }
+            if (isWorkComplete && schedule[currentStepIndex]?.type === 'work') stats.history[today].sessions += 1;
+            safeSet('pages_pomodoro_stats_v9', JSON.stringify(stats));
+        }
+
+        function completeSession() {
+            stopTimer(); if (isOvertime && schedule[currentStepIndex]?.type === 'work') accumulatedStudyTime += timeLeft;
+            if (schedule[currentStepIndex]) schedule[currentStepIndex].status = 'completed'; safeSet('pages_pomodoro_schedule_v9', JSON.stringify(schedule));
+            flushSessionStats(schedule[currentStepIndex]?.type === 'work'); isOvertime = false; document.getElementById('complete-main-btn').classList.add('hidden'); timeDisplay.classList.remove('text-red-500');
+            updateTgLiveStatus('completed'); loadStep(currentStepIndex + 1); startTimer(); renderSchedule();
+        }
+
+        function jumpToStep(index) {
+            stopTimer(); if (schedule[currentStepIndex] && schedule[currentStepIndex].status !== 'completed') { schedule[currentStepIndex].status = 'skipped'; safeSet('pages_pomodoro_schedule_v9', JSON.stringify(schedule)); }
+            flushSessionStats(false); isOvertime = false; document.getElementById('complete-main-btn').classList.add('hidden'); timeDisplay.classList.remove('text-red-500');
+            updateTgLiveStatus('skipped'); loadStep(index); startTimer(); renderSchedule(); 
+        }
+
+        document.querySelectorAll('.main-day-tab').forEach(btn => btn.addEventListener('click', (e) => {
+            activeMainDay = parseInt(e.target.getAttribute('data-day'));
+            document.querySelectorAll('.main-day-tab').forEach(b => {
+                b.className = parseInt(b.getAttribute('data-day')) === activeMainDay ? "main-day-tab flex-1 min-w-[30px] sm:min-w-[35px] bg-blue-600 text-white text-[9px] sm:text-[10px] lg:text-xs px-1 py-1.5 rounded-md font-bold shadow-md transition-colors" : "main-day-tab flex-1 min-w-[30px] sm:min-w-[35px] bg-slate-800 text-slate-300 hover:bg-slate-700 text-[9px] sm:text-[10px] lg:text-xs px-1 py-1.5 rounded-md font-bold transition-colors";
+            });
+        }));
+        
+        document.getElementById('main-new-day-btn')?.addEventListener('click', () => {
+            showCustomConfirm("Load this day's plan and reset timer?", () => {
+                schedule = JSON.parse(JSON.stringify(weeklyTemplates[activeMainDay] || [])); schedule.forEach(s => delete s.status); safeSet('pages_pomodoro_schedule_v9', JSON.stringify(schedule));
+                currentStepIndex = 0; accumulatedStudyTime = 0; loadStep(0, false); renderSchedule(); 
+            });
+        });
+
+        const settingsModal = document.getElementById('settings-modal');
+        document.getElementById('edit-schedule-btn')?.addEventListener('click', () => { stopTimer(); renderTemplateEditor(); settingsModal.classList.remove('hidden'); });
+        document.getElementById('close-settings-btn')?.addEventListener('click', () => settingsModal.classList.add('hidden'));
+        document.getElementById('save-settings-btn')?.addEventListener('click', () => {
+            safeSet('pages_pomodoro_tg_token', document.getElementById('tg-token-input').value); safeSet('pages_pomodoro_tg_chatid', document.getElementById('tg-chatid-input').value); safeSet('pages_pomodoro_tg_live_sync', document.getElementById('tg-live-sync-toggle').checked ? 'true' : 'false');
+            settingsModal.classList.add('hidden');
+        });
+
+        function renderTemplateEditor() {
+            const list = document.getElementById('settings-list'); list.innerHTML = '';
+            (weeklyTemplates[activeTemplateDay]||[]).forEach((item, index) => {
+                const row = document.createElement('div'); row.className = "flex gap-1.5 items-center bg-slate-950/60 p-1.5 rounded-lg border border-slate-800";
+                row.innerHTML = `<span class="text-[9px] font-mono text-slate-500 w-4">${index+1}</span><input type="text" value="${item.title}" class="flex-1 bg-slate-900 rounded px-1.5 py-1 text-[10px] text-white focus:outline-none focus:border-blue-500 border border-transparent" onchange="weeklyTemplates[${activeTemplateDay}][${index}].title=this.value; safeSet('pages_pomodoro_weekly_v9', JSON.stringify(weeklyTemplates)); window.syncTemplateToLive();"><input type="number" value="${Math.round(item.duration/60)}" class="w-10 bg-slate-900 rounded px-1 text-[10px] text-center text-white focus:outline-none focus:border-blue-500 border border-transparent" onchange="weeklyTemplates[${activeTemplateDay}][${index}].duration=this.value*60; safeSet('pages_pomodoro_weekly_v9', JSON.stringify(weeklyTemplates)); window.syncTemplateToLive();"><button onclick="weeklyTemplates[${activeTemplateDay}].splice(${index},1); renderTemplateEditor(); safeSet('pages_pomodoro_weekly_v9', JSON.stringify(weeklyTemplates)); window.syncTemplateToLive();" class="text-red-500 hover:text-red-400 p-1">🗑️</button>`;
+                list.appendChild(row);
+            });
+        }
+        
+        document.querySelectorAll('.day-tab-btn').forEach(btn => btn.addEventListener('click', (e) => { 
+            activeTemplateDay = parseInt(e.target.getAttribute('data-day')); 
+            document.querySelectorAll('.day-tab-btn').forEach(b => b.className = parseInt(b.getAttribute('data-day')) === activeTemplateDay ? "day-tab-btn flex-1 min-w-[35px] bg-blue-600 text-white text-[9px] sm:text-[10px] px-1 py-1.5 rounded-lg font-bold transition-colors" : "day-tab-btn flex-1 min-w-[35px] bg-slate-800 text-slate-300 text-[9px] sm:text-[10px] px-1 py-1.5 rounded-lg font-bold transition-colors"); 
+            renderTemplateEditor(); 
+        }));
+
+        document.getElementById('add-sess-btn')?.addEventListener('click', () => {
+            const t = document.getElementById('new-sess-title').value || "Block", d = parseInt(document.getElementById('new-sess-dur').value) || 30, type = document.getElementById('new-sess-type').value;
+            weeklyTemplates[activeTemplateDay].push({ id: Date.now(), type, title: t, duration: d * 60 }); 
+            safeSet('pages_pomodoro_weekly_v9', JSON.stringify(weeklyTemplates)); 
+            renderTemplateEditor();
+            window.syncTemplateToLive();
+        });
+
+        document.getElementById('tg-token-input').value = safeGet('pages_pomodoro_tg_token', '');
+        document.getElementById('tg-chatid-input').value = safeGet('pages_pomodoro_tg_chatid', '');
+        document.getElementById('tg-live-sync-toggle').checked = safeGet('pages_pomodoro_tg_live_sync', 'false') === 'true';
+
+        let tgLiveMsgId = safeGet('pages_pomodoro_tg_msg_id', null); let lastTgMin = -1, pausedMins = 0;
+        
+        async function updateTgLiveStatus(state) {
+            const token = safeGet('pages_pomodoro_tg_token', ''), chatId = safeGet('pages_pomodoro_tg_chatid', ''), isLive = safeGet('pages_pomodoro_tg_live_sync', 'false') === 'true';
+            if (!token || !chatId || !isLive || !schedule[currentStepIndex]) return;
+            
+            const mins = Math.floor(timeLeft / 60); let sText = state === 'started' || state === 'running' ? '🟢 *LIVE NOW*' : state === 'paused' ? '⏸ *PAUSED*' : state === 'completed' ? '✅ *COMPLETED*' : state === 'overtime' ? '🚨 *OVERTIME*' : '⏭ *SKIPPED*';
+            let text = `${sText}\n\n${schedule[currentStepIndex].type === 'work'?'🧠':'💧'} *Target:* ${schedule[currentStepIndex].title}\n⏳ *Time Left:* ${state==='overtime'?'+':''}${mins} mins\n\n🗓️ *TODAY'S PROTOCOL*\n`;
+            let wDone=0, wTot=0; schedule.forEach((s, i) => { if(s.type==='done')return; if(s.type==='work')wTot++; let m = s.status==='completed'?'✅':s.status==='skipped'?'❌':i===currentStepIndex?'▶️':'⏳'; if(s.status==='completed'&&s.type==='work')wDone++; text+=`${m} ${s.title}\n`; });
+            
+            const tasks = JSON.parse(safeGet('pages_pomodoro_tasks_v1', '[]')), todayStart = new Date().setHours(0,0,0,0);
+            text += `\n📈 *PROGRESS:* ${wDone}/${wTot} Study Blocks Done\n`;
+            text += `\n📚 *VAULT TRACKING*\n📦 Backlogs Cleared Today: ${tasks.filter(t=>t.category==='backlog'&&t.status==='completed'&&t.completedAt>=todayStart).length} (Pending: ${tasks.filter(t=>t.category==='backlog'&&t.status==='pending').length})\n📝 Daily HW Done: ${tasks.filter(t=>t.category==='homework'&&t.status==='completed'&&t.completedAt>=todayStart).length}\n`;
+            if(state==='paused') text += `\n⚠️ *WARNING:* Timer is currently paused!`;
+
+            try {
+                if ((state === 'started' && !tgLiveMsgId) || (!tgLiveMsgId && (state==='running'||state==='paused'))) {
+                    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'Markdown' }) });
+                    const data = await res.json(); if (data.ok) { tgLiveMsgId = data.result.message_id; safeSet('pages_pomodoro_tg_msg_id', tgLiveMsgId); lastTgMin = mins; }
+                } else if (tgLiveMsgId) {
+                    await fetch(`https://api.telegram.org/bot${token}/editMessageText`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, message_id: tgLiveMsgId, text: text, parse_mode: 'Markdown' }) });
+                    lastTgMin = mins; if (state === 'completed' || state === 'skipped') { tgLiveMsgId = null; safeRemove('pages_pomodoro_tg_msg_id'); lastTgMin = -1; }
+                }
+            } catch(e){}
+        }
+
+        setInterval(() => {
+            if (!isRunning && schedule[currentStepIndex]?.type !== 'done' && timeLeft > 0) {
+                pausedMins++; 
+                if (pausedMins === 5 || pausedMins === 15) { 
+                    const t=safeGet('pages_pomodoro_tg_token',''), c=safeGet('pages_pomodoro_tg_chatid',''); 
+                    if(t&&c) {
+                        const harshMsg = pausedMins === 5 ? `🚨 *STRICT WARNING: WAKE UP!*\nYou have been slacking for ${pausedMins} minutes. The timer is paused. While you are distracted, someone else is taking your seat. GET BACK TO THE DESK NOW.` : `❌ *CRITICAL FAILURE*\n15 minutes wasted on a pause break. Discipline check failed. Resume immediately or reset the block.`;
+                        fetch(`https://api.telegram.org/bot${t}/sendMessage`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({chat_id:c, text:harshMsg, parse_mode:'Markdown'})}); 
+                    }
+                }
+            } else { 
+                pausedMins = 0; 
+                if (isRunning && Math.floor(timeLeft/60) !== lastTgMin) updateTgLiveStatus('running'); 
+            }
+        }, 60000);
+
+        async function sendTelegramReport(isAuto = false) {
+            const token = safeGet('pages_pomodoro_tg_token', ''), chatId = safeGet('pages_pomodoro_tg_chatid', ''); if (!token || !chatId) return;
+            const stats = JSON.parse(safeGet('pages_pomodoro_stats_v9', '{"history":{}}')), tData = stats.history[new Date().toISOString().split('T')[0]] || {mins:0, sessions:0};
+            const tasks = JSON.parse(safeGet('pages_pomodoro_tasks_v1', '[]')), todayStart = new Date().setHours(0,0,0,0);
+            const msg = `📊 *NEET 2027 EOD Report*\n\n⏱️ *Time Focused:* ${tData.mins}m\n✅ *Blocks Completed:* ${schedule.filter(s=>s.status==='completed').length}/${schedule.filter(s=>s.type!=='done').length}\n\n📚 *VAULT PROGRESSION (TODAY)*\n📦 Backlogs Cleared: ${tasks.filter(t=>t.category==='backlog'&&t.status==='completed'&&t.completedAt>=todayStart).length} (Remaining: ${tasks.filter(t=>t.category==='backlog'&&t.status==='pending').length})\n🔁 Revisions Done: ${tasks.filter(t=>t.category==='revision'&&t.status==='completed'&&t.completedAt>=todayStart).length}\n📝 Daily HW Completed: ${tasks.filter(t=>t.category==='homework'&&t.status==='completed'&&t.completedAt>=todayStart).length}\n\nGreat work today. Keep grinding. 🩺`;
+            try { fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'Markdown' }) }); } catch(e){}
+        }
+        document.getElementById('send-tg-btn')?.addEventListener('click', () => sendTelegramReport(false));
+
+        const taskModal = document.getElementById('task-manager-modal'); let tasks = JSON.parse(safeGet('pages_pomodoro_tasks_v1', '[]')), activeCat = 'backlog';
+        document.getElementById('task-manager-btn')?.addEventListener('click', () => { taskModal.classList.remove('hidden'); renderTasks(); });
+        document.getElementById('close-task-btn')?.addEventListener('click', () => taskModal.classList.add('hidden'));
+        
+        document.querySelectorAll('.task-tab-btn').forEach(btn => btn.addEventListener('click', (e) => { 
+            activeCat = e.target.dataset.cat; 
+            document.querySelectorAll('.task-tab-btn').forEach(b => { b.classList.remove('border-purple-500', 'text-purple-400', 'border-amber-500', 'text-amber-400', 'border-blue-500', 'text-blue-400', 'border-emerald-500', 'text-emerald-400'); b.classList.add('border-transparent', 'text-slate-500'); }); 
+            e.target.classList.remove('border-transparent', 'text-slate-500');
+            if (activeCat === 'backlog') e.target.classList.add('border-purple-500', 'text-purple-400');
+            else if (activeCat === 'revision') e.target.classList.add('border-amber-500', 'text-amber-400');
+            else if (activeCat === 'homework') e.target.classList.add('border-blue-500', 'text-blue-400');
+            else if (activeCat === 'progress') e.target.classList.add('border-emerald-500', 'text-emerald-400');
+
+            if(activeCat === 'progress'){ document.getElementById('add-task-section').classList.add('hidden'); document.getElementById('task-list-section').classList.add('hidden'); document.getElementById('task-progress-section').classList.remove('hidden'); renderProgress(); } 
+            else { document.getElementById('add-task-section').classList.remove('hidden'); document.getElementById('task-list-section').classList.remove('hidden'); document.getElementById('task-progress-section').classList.add('hidden'); renderTasks(); } 
+        }));
+
+        document.getElementById('add-task-form')?.addEventListener('submit', e => { 
+            e.preventDefault(); 
+            const t = document.getElementById('task-title-input').value; 
+            if(!t) return; 
+            tasks.unshift({ id:Date.now(), title:t, subject:document.getElementById('task-subject-input').value, category:activeCat, status:'pending', createdAt:Date.now(), completedAt:null }); 
+            safeSet('pages_pomodoro_tasks_v1', JSON.stringify(tasks)); 
+            document.getElementById('task-title-input').value=''; 
+            renderTasks(); 
+        });
+        
+        window.toggleTask = id => { const t = tasks.find(x=>x.id===id); if(t){ t.status=t.status==='pending'?'completed':'pending'; t.completedAt=t.status==='completed'?Date.now():null; safeSet('pages_pomodoro_tasks_v1', JSON.stringify(tasks)); renderTasks(); }};
+        window.delTask = id => { tasks=tasks.filter(x=>x.id!==id); safeSet('pages_pomodoro_tasks_v1', JSON.stringify(tasks)); renderTasks(); };
+
+        function renderTasks() {
+            const aC = document.getElementById('active-tasks-container'), cC = document.getElementById('completed-tasks-container'), fT = tasks.filter(t=>t.category===activeCat);
+            aC.innerHTML=''; cC.innerHTML=''; document.getElementById('completed-count').textContent = fT.filter(t=>t.status==='completed').length;
+            fT.filter(t=>t.status==='pending').forEach(t => aC.innerHTML += `<div class="flex items-center justify-between p-2.5 rounded-xl border border-slate-700 bg-slate-800/80 mb-1.5"><div class="flex items-center gap-2 flex-1 cursor-pointer" onclick="toggleTask(${t.id})"><div class="w-5 h-5 rounded border border-slate-500 flex-shrink-0 transition-colors hover:bg-slate-700"></div><div class="flex flex-col"><span class="text-sm font-semibold">${t.title}</span><span class="text-[9px] uppercase text-slate-400">${t.subject}</span></div></div><button onclick="delTask(${t.id})" class="text-slate-500 hover:text-red-400 p-1 flex-shrink-0 transition-colors">🗑️</button></div>`);
+            
+            let doneColor = activeCat === 'backlog' ? 'bg-purple-600 border-purple-600' : activeCat === 'revision' ? 'bg-amber-600 border-amber-600' : 'bg-blue-600 border-blue-600';
+            fT.filter(t=>t.status==='completed').forEach(t => cC.innerHTML += `<div class="flex items-center justify-between p-2.5 rounded-xl border border-slate-800 bg-slate-900/50 mb-1.5"><div class="flex items-center gap-2 flex-1 opacity-50 cursor-pointer" onclick="toggleTask(${t.id})"><div class="w-5 h-5 rounded ${doneColor} flex-shrink-0 flex items-center justify-center text-white text-xs">✓</div><div class="flex flex-col"><span class="text-sm line-through">${t.title}</span><span class="text-[9px] uppercase">${t.subject}</span></div></div></div>`);
+        }
+        
+        function renderProgress() { 
+            const bg = tasks.filter(t=>t.category==='backlog'), done = bg.filter(t=>t.status==='completed').length, pct = bg.length>0?Math.round((done/bg.length)*100):0; 
+            document.getElementById('task-progress-section').innerHTML = `<div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800 shadow-inner"><h3 class="text-xs font-bold text-slate-400 mb-2">Backlog Burden</h3><div class="flex justify-between items-end"><p class="text-2xl font-bold text-white">${done}/${bg.length}</p><span class="text-purple-400 font-mono">${pct}%</span></div><div class="w-full bg-slate-800 h-2 mt-2 rounded-full overflow-hidden"><div class="bg-purple-600 h-full rounded-full transition-all duration-500" style="width:${pct}%"></div></div></div>`; 
+        }
+        
+        document.getElementById('toggle-completed-tasks-btn')?.addEventListener('click', () => document.getElementById('completed-tasks-container').classList.toggle('hidden'));
+
+        document.getElementById('stats-btn')?.addEventListener('click', () => { 
+            flushSessionStats(); 
+            const stats = JSON.parse(safeGet('pages_pomodoro_stats_v9', '{"history":{}}')); 
+            const tData = stats.history[new Date().toISOString().split('T')[0]] || {mins:0, sessions:0}; 
+            document.getElementById('stat-today-mins').innerHTML = `${tData.mins}<span class="text-xs text-slate-500 ml-1">m</span>`; 
+            document.getElementById('stat-today-sessions').textContent = tData.sessions; 
+            
+            let dataPts = [], labels = [], totalWeeklyMins = 0;
+            const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+            for (let i = 6; i >= 0; i--) {
+                let d = new Date(); d.setDate(d.getDate() - i); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+                let dStr = d.toISOString().split('T')[0];
+                labels.push(days[d.getDay()]);
+                let dayMins = stats.history[dStr] ? stats.history[dStr].mins : 0;
+                dataPts.push(dayMins); totalWeeklyMins += dayMins;
+            }
+            document.getElementById('stat-weekly-total').textContent = `${totalWeeklyMins}m Total`;
+            
+            const w = 600, h = 100;
+            let max = Math.max(...dataPts, 60);
+            let points = dataPts.map((val, i) => `${(i / 6) * w},${h - (val / max) * h}`);
+            let pathD = `M 0,${h} ` + dataPts.map((val, i) => `L ${(i / 6) * w},${h - (val / max) * h}`).join(" ") + ` L ${w},${h}`;
+            let circles = dataPts.map((val, i) => {
+                let x = (i / 6) * w, y = h - (val / max) * h;
+                return `<circle cx="${x}" cy="${y}" r="4" fill="#3b82f6" class="shadow-lg drop-shadow-md" />
+                        <text x="${x}" y="${y - 8}" fill="#94a3b8" font-size="12" font-weight="bold" text-anchor="middle">${val > 0 ? val + 'm' : ''}</text>`;
+            }).join("");
+            let xLabels = labels.map((day, i) => `<text x="${(i / 6) * w}" y="${h + 20}" fill="#64748b" font-size="11" font-weight="bold" font-family="sans-serif" text-anchor="middle">${day}</text>`).join("");
+
+            document.getElementById('stats-chart-container').innerHTML = `
+                <svg viewBox="-20 -20 640 160" class="w-full h-full overflow-visible">
+                    <defs><linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(59,130,246,0.3)" /><stop offset="100%" stop-color="rgba(59,130,246,0)" /></linearGradient></defs>
+                    <path d="${pathD}" fill="url(#lineGrad)" opacity="0.8" />
+                    <polyline points="${points.join(' ')}" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                    ${circles} ${xLabels}
+                </svg>`;
+                
+            document.getElementById('stats-modal').classList.remove('hidden'); 
+        });
+        document.getElementById('close-stats-btn')?.addEventListener('click', () => document.getElementById('stats-modal').classList.add('hidden'));
+        
+        document.getElementById('history-report-btn')?.addEventListener('click', () => { 
+            document.getElementById('stats-modal').classList.add('hidden'); document.getElementById('history-report-modal').classList.remove('hidden'); 
+            const stats = JSON.parse(safeGet('pages_pomodoro_stats_v9', '{"history":{}}')); let html="", tot=0; 
+            for(let i=0;i<30;i++){ 
+                let d=new Date(); d.setDate(d.getDate()-i); let ds=d.toISOString().split('T')[0]; 
+                if(stats.history[ds] && stats.history[ds].mins>0){ 
+                    html+=`<div class="flex justify-between items-center bg-slate-800/80 border border-slate-700 p-2.5 rounded-lg mb-1.5 text-xs"><span class="font-medium text-slate-300">${ds}</span><span class="text-emerald-400 font-mono font-bold">${stats.history[ds].mins}m</span></div>`; 
+                    tot+=stats.history[ds].mins; 
+                } 
+            } 
+            document.getElementById('history-report-content').innerHTML=html; document.getElementById('history-overall-stats').textContent=`30-Day Total: ${tot}m`; 
+        });
+        document.getElementById('close-history-btn')?.addEventListener('click', () => { document.getElementById('history-report-modal').classList.add('hidden'); document.getElementById('stats-modal').classList.remove('hidden'); });
+
+        document.getElementById('emergency-break-btn')?.addEventListener('click', () => { stopTimer(); schedule.splice(currentStepIndex, 0, { id: Date.now(), type: 'break', title: '🚨 EMERGENCY BREAK', duration: 15*60 }); safeSet('pages_pomodoro_schedule_v9', JSON.stringify(schedule)); renderSchedule(); loadStep(currentStepIndex); startTimer(); });
+
+        let savedStateRaw = safeGet('pages_pomodoro_app_state_v9', null);
+        if (savedStateRaw && schedule.length > 0) {
+            try { 
+                let st = JSON.parse(savedStateRaw); currentStepIndex = st.currentStepIndex || 0; targetEndTime = st.targetEndTime || 0; accumulatedStudyTime = st.accumulatedStudyTime || 0; isOvertime = st.isOvertime || false; loadStep(currentStepIndex, true); 
+                if (st.isRunning) { 
+                    if (isOvertime) { timeLeft = Math.abs(Math.round((targetEndTime - Date.now())/1000)); updateDisplay(); startTimer(); } 
+                    else { 
+                        let r = Math.round((st.targetEndTime - Date.now())/1000); 
+                        if (r > 0) { timeLeft = r; updateDisplay(); startTimer(); } 
+                        else { isOvertime = true; timeLeft = Math.abs(r); updateDisplay(); startTimer(); } 
+                    } 
+                } else { timeLeft = st.timeLeft !== undefined ? st.timeLeft : (schedule[currentStepIndex]?.duration||0); updateDisplay(); } 
+            } catch(e) { loadStep(0); }
+        } else if (schedule.length > 0) loadStep(0);
+        renderSchedule(); 
+
+    </script>
+</body>
+</html>
