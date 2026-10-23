@@ -7891,6 +7891,230 @@
     rebuildSubjectPills();
 })();
 </script>
+    <!-- ================= PIXEL-PERFECT PDF TEXT LAYER & EXACT HIGHLIGHT FIX ================= -->
+<style>
+    /* Keep PDF text layer 100% invisible even when highlighted so it never overlaps PDF graphics */
+    .reader-text-layer {
+        position: absolute !important;
+        inset: 0 !important;
+        overflow: hidden !important;
+        user-select: text !important;
+        -webkit-user-select: text !important;
+    }
+    .reader-pdf-span {
+        position: absolute;
+        color: transparent !important;
+        white-space: pre;
+        cursor: text;
+        transform-origin: 0% 0%;
+        line-height: 1;
+    }
+    .reader-pdf-span::selection,
+    .reader-text-layer ::selection {
+        color: transparent !important;
+        background: rgba(250, 204, 21, 0.42) !important;
+    }
+</style>
+
+<script>
+(function() {
+    // 1. Upgrade PDF Page Renderer to Pin Every Text Item to Its Exact (X, Y) PDF Coordinate
+    const stageEl = document.getElementById('reader-pages-stage');
+    if (!stageEl) return;
+
+    // Helper: Map exact DOM selection rectangles to normalized (0..1) page coordinates
+    function getNormalizedSelectionRects(pageCard) {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return [];
+        const range = sel.getRangeAt(0);
+        const cardRect = pageCard.getBoundingClientRect();
+        if (!cardRect.width || !cardRect.height) return [];
+
+        const rawRects = Array.from(range.getClientRects());
+        const normRects = [];
+        rawRects.forEach(r => {
+            if (r.width < 2 || r.height < 2) return;
+            const x = Math.max(0, Math.min(1, (r.left - cardRect.left) / cardRect.width));
+            const y = Math.max(0, Math.min(1, (r.top - cardRect.top) / cardRect.height));
+            const w = Math.max(0.01, Math.min(1 - x, r.width / cardRect.width));
+            const h = Math.max(0.01, Math.min(1 - y, r.height / cardRect.height));
+            normRects.push({ x, y, w, h });
+        });
+        return normRects;
+    }
+
+    // Intercept and upgrade PDF text layer positioning whenever pages render
+    const observer = new MutationObserver(async (mutations) => {
+        for (const m of mutations) {
+            for (const node of m.addedNodes) {
+                if (node.nodeType === 1 && node.classList.contains('reader-page-card')) {
+                    await upgradePdfPageTextLayer(node);
+                }
+            }
+        }
+    });
+    observer.observe(stageEl, { childList: true });
+
+    async function upgradePdfPageTextLayer(pageCard) {
+        const pageNum = parseInt(pageCard.getAttribute('data-page'));
+        const canvas = pageCard.querySelector('canvas.reader-pdf-canvas');
+        const textLayer = pageCard.querySelector('.reader-text-layer');
+        const svgLayer = pageCard.querySelector('svg.reader-vector-svg');
+        if (!canvas || !textLayer || !pageNum || typeof pdfjsLib === 'undefined') return;
+
+        // Wait briefly for the original renderSinglePdfPageCard to finish drawing the canvas
+        await new Promise(r => setTimeout(r, 60));
+
+        // Access the active PDF page via pdfjs
+        if (!window._cachedPdfDocs) window._cachedPdfDocs = {};
+        const bookTitle = document.getElementById('active-book-title-bar')?.textContent || '';
+        const books = JSON.parse(localStorage.getItem('pages_pomodoro_reader_books_v1') || '[]');
+        const curBook = books.find(b => b.title === bookTitle) || books[0];
+        if (!curBook || curBook.format !== 'pdf') return;
+
+        try {
+            const req = indexedDB.open('PomoReaderProDB_v1', 1);
+            req.onsuccess = async (ev) => {
+                const db = ev.target.result;
+                const tx = db.transaction('bookFiles', 'readonly');
+                const getReq = tx.objectStore('bookFiles').get(curBook.id);
+                getReq.onsuccess = async () => {
+                    const stored = getReq.result;
+                    if (!stored || !stored.originalBytes) return;
+
+                    if (!window._cachedPdfDocs[curBook.id]) {
+                        window._cachedPdfDocs[curBook.id] = await pdfjsLib.getDocument({ data: stored.originalBytes.slice(0) }).promise;
+                    }
+                    const pdfDoc = window._cachedPdfDocs[curBook.id];
+                    const page = await pdfDoc.getPage(pageNum);
+                    const viewport = page.getViewport({ scale: 1.0 });
+                    const textContent = await page.getTextContent();
+
+                    // Clear the misaligned flex-col overlay while keeping the margin chips tray
+                    const existingTray = textLayer.querySelector('.page-annotations-chips-tray');
+                    textLayer.innerHTML = '';
+                    textLayer.className = "reader-text-layer";
+
+                    // Group items into exact horizontal lines by their PDF Y coordinate
+                    const lineGroups = [];
+                    textContent.items.forEach(item => {
+                        if (!item.str || !item.str.trim()) return;
+                        const m = pdfjsLib.Util.transform(viewport.transform, item.transform);
+                        const fontHeight = Math.hypot(m[2], m[3]);
+                        const x = m[4];
+                        const y = m[5] - fontHeight * 0.88;
+                        const w = (item.width || (item.str.length * fontHeight * 0.5)) * viewport.scale;
+                        const h = fontHeight * 1.18;
+
+                        // Find if there is already a line at this exact Y coordinate (within 4px)
+                        let line = lineGroups.find(lg => Math.abs(lg.y - y) < 4);
+                        if (!line) {
+                            line = { y, minX: x, maxX: x + w, h, items: [] };
+                            lineGroups.push(line);
+                        }
+                        line.minX = Math.min(line.minX, x);
+                        line.maxX = Math.max(line.maxX, x + w);
+                        line.h = Math.max(line.h, h);
+                        line.items.push({ x, str: item.str });
+                    });
+
+                    // Sort lines top-to-bottom, and words left-to-right within each line
+                    lineGroups.sort((a, b) => a.y - b.y);
+
+                    lineGroups.forEach((line, idx) => {
+                        line.items.sort((a, b) => a.x - b.x);
+                        const fullLineText = line.items.map(i => i.str).join(' ');
+
+                        const span = document.createElement('div');
+                        span.className = "reader-pdf-span reader-line-node";
+                        const leftPct = (line.minX / viewport.width) * 100;
+                        const topPct = (line.y / viewport.height) * 100;
+                        const widthPct = ((line.maxX - line.minX) / viewport.width) * 100;
+                        const heightPct = (line.h / viewport.height) * 100;
+
+                        span.style.left = `${Math.max(0, leftPct)}%`;
+                        span.style.top = `${Math.max(0, topPct)}%`;
+                        span.style.width = `${Math.min(100 - leftPct, Math.max(2, widthPct))}%`;
+                        span.style.height = `${Math.max(1.2, heightPct)}%`;
+                        span.style.fontSize = `${Math.max(9, (line.h / viewport.height) * pageCard.clientHeight * 0.82)}px`;
+
+                        span.setAttribute('data-page', pageNum);
+                        span.setAttribute('data-line-idx', idx);
+                        span.setAttribute('data-x-norm', (leftPct / 100).toFixed(4));
+                        span.setAttribute('data-y-norm', (topPct / 100).toFixed(4));
+                        span.setAttribute('data-w-norm', (widthPct / 100).toFixed(4));
+                        span.setAttribute('data-h-norm', (heightPct / 100).toFixed(4));
+                        span.textContent = fullLineText;
+
+                        textLayer.appendChild(span);
+                    });
+
+                    if (existingTray) textLayer.appendChild(existingTray);
+
+                    // Re-render exact bounding-box highlights on SVG
+                    if (svgLayer) {
+                        svgLayer.querySelectorAll('rect[data-exact-hl="1"]').forEach(r => r.remove());
+                        const latestBooks = JSON.parse(localStorage.getItem('pages_pomodoro_reader_books_v1') || '[]');
+                        const bNow = latestBooks.find(b => b.id === curBook.id);
+                        (bNow?.annotations || []).filter(a => (a.page || 1) === pageNum && a.rects && a.rects.length).forEach(ann => {
+                            ann.rects.forEach(rc => {
+                                const hlRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                                hlRect.setAttribute('data-exact-hl', '1');
+                                hlRect.setAttribute('x', `${rc.x * 100}%`);
+                                hlRect.setAttribute('y', `${rc.y * 100}%`);
+                                hlRect.setAttribute('width', `${rc.w * 100}%`);
+                                hlRect.setAttribute('height', `${rc.h * 100}%`);
+                                hlRect.setAttribute('fill', ann.color || '#facc15');
+                                hlRect.setAttribute('fill-opacity', '0.35');
+                                hlRect.setAttribute('rx', '2');
+                                svgLayer.appendChild(hlRect);
+                            });
+                        });
+                    }
+                };
+            };
+        } catch (e) {}
+    }
+
+    // 2. Capture Exact Selected Line/Word Bounding Box on Mouse Drag or 2-Second Long-Press
+    let lastSelectedRects = [];
+    document.getElementById('reader-viewport')?.addEventListener('pointerup', (e) => {
+        const pageCard = e.target.closest('.reader-page-card');
+        if (!pageCard) return;
+        const rects = getNormalizedSelectionRects(pageCard);
+        if (rects.length > 0) {
+            lastSelectedRects = rects;
+        } else {
+            const lineEl = e.target.closest('.reader-pdf-span');
+            if (lineEl) {
+                lastSelectedRects = [{
+                    x: parseFloat(lineEl.getAttribute('data-x-norm')) || 0.05,
+                    y: parseFloat(lineEl.getAttribute('data-y-norm')) || 0.2,
+                    w: parseFloat(lineEl.getAttribute('data-w-norm')) || 0.85,
+                    h: parseFloat(lineEl.getAttribute('data-h-norm')) || 0.025
+                }];
+            }
+        }
+    }, true);
+
+    // Attach exact rects to newly created highlights/notes
+    ['sel-action-highlight', 'sel-action-note', 'sel-action-bookmark', 'sel-action-attach'].forEach(btnId => {
+        document.getElementById(btnId)?.addEventListener('click', () => {
+            setTimeout(() => {
+                const books = JSON.parse(localStorage.getItem('pages_pomodoro_reader_books_v1') || '[]');
+                const bookTitle = document.getElementById('active-book-title-bar')?.textContent || '';
+                const curBook = books.find(b => b.title === bookTitle) || books[0];
+                if (curBook && curBook.annotations && curBook.annotations.length > 0 && lastSelectedRects.length > 0) {
+                    const newest = curBook.annotations[curBook.annotations.length - 1];
+                    newest.rects = lastSelectedRects;
+                    newest.yNorm = lastSelectedRects[0].y;
+                    localStorage.setItem('pages_pomodoro_reader_books_v1', JSON.stringify(books));
+                }
+            }, 80);
+        }, true);
+    });
+})();
+</script>
 </body>
 </html>
     
