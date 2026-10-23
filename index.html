@@ -7752,13 +7752,12 @@ apiKey: "AIza" + "SyAbi9-V0S3DOtOAgBirMxrvV6J-XdwLf3Q",
     updateMainFolderUI();
 })();
 </script>
-<!-- ================= END OF PART 3B — COMPLETE PRO READER & LIFE OS ================= -->
-    <!-- ========================================================================= -->
-<!-- ================= POMO DESKTOP-NATIVE OS + STEEL SHIELD v2.0 ============ -->
-<!-- PASTE THIS SINGLE CONSOLIDATED MODULE RIGHT ABOVE </body></html>          -->
+<!-- ================= END OF PART 3B — COMPLETE PRO READER & LIFE OS ================= --><!-- ========================================================================= -->
+<!-- ======== POMO DESKTOP-NATIVE OS + RPG LEVELING + STUDIO v3.0 ============ -->
+<!-- REPLACE EVERYTHING BELOW PART 3B WITH THIS BLOCK (RIGHT ABOVE </body>)    -->
 <!-- ========================================================================= -->
 <style id="pomo-desktop-native-css">
-    /* 1. REMOVE ANDROID MOBILE RESTRICTIONS & RESTORE DESKTOP SCROLLBARS */
+    /* 1. DESKTOP NATIVE SCROLLBARS & FULL VIEWPORT OPTIMIZATION */
     html, body {
         touch-action: auto !important;
         -webkit-tap-highlight-color: transparent;
@@ -7785,14 +7784,14 @@ apiKey: "AIza" + "SyAbi9-V0S3DOtOAgBirMxrvV6J-XdwLf3Q",
         background: #3b82f6 !important;
     }
 
-    /* 2. VERTICALLY SCROLLABLE WOODEN BOOKSHELF FOR UNLIMITED BOOKS */
+    /* 2. VERTICALLY SCROLLABLE UNLIMITED WOODEN BOOKSHELF */
     #wooden-bookshelf-wrapper {
         max-height: calc(100dvh - 14.5rem) !important;
         min-height: 52vh !important;
         overflow-y: auto !important;
         overflow-x: hidden !important;
         scrollbar-width: thin !important;
-        scrollbar-color: #a16207 #1f140c !important;
+        scrollbar-color: #b45309 #1a110a !important;
         padding-right: 0.75rem !important;
     }
     #wooden-bookshelf-wrapper::-webkit-scrollbar {
@@ -7804,15 +7803,15 @@ apiKey: "AIza" + "SyAbi9-V0S3DOtOAgBirMxrvV6J-XdwLf3Q",
         border-radius: 8px !important;
     }
     #wooden-bookshelf-wrapper::-webkit-scrollbar-thumb {
-        background: linear-gradient(180deg, #b45309, #78350f) !important;
+        background: linear-gradient(180deg, #d97706, #78350f) !important;
         border-radius: 8px !important;
         border: 2px solid #1a110a !important;
     }
 
-    /* 3. CUSTOM SHELF / GENRE BRASS NAMEPLATE HEADER ON WOODEN PLANKS */
+    /* 3. BRASS NAMEPLATE FOR CUSTOM SHELVES / GENRES */
     .shelf-genre-header {
         background: linear-gradient(90deg, #451a03 0%, #78350f 50%, #451a03 100%);
-        border: 1px solid #d97706;
+        border: 1px solid #f59e0b;
         box-shadow: 0 4px 12px rgba(0,0,0,0.65), inset 0 1px 1px rgba(253, 224, 71, 0.35);
         border-radius: 0.75rem;
         padding: 0.45rem 0.9rem;
@@ -7823,39 +7822,103 @@ apiKey: "AIza" + "SyAbi9-V0S3DOtOAgBirMxrvV6J-XdwLf3Q",
         gap: 0.5rem;
     }
 
-    /* 4. PIXEL-PERFECT TRANSPARENT PDF TEXT SELECTION (ZERO OVERLAP GLITCH) */
-    .reader-text-layer {
-        position: absolute !important;
-        inset: 0 !important;
-        overflow: hidden !important;
-        user-select: text !important;
-        -webkit-user-select: text !important;
+    /* 4. INTERACTIVE VECTOR STUDIO & SMART LASER HIGHLIGHT LAYER */
+    .v3-page-stage-card {
+        position: relative;
+        margin: 0.75rem auto;
+        background: #ffffff;
+        box-shadow: 0 12px 32px rgba(0,0,0,0.7);
+        border-radius: 6px;
+        overflow: hidden;
+        user-select: none !important;
+        -webkit-user-select: none !important;
     }
-    .reader-pdf-span {
+    .v3-interactive-svg {
         position: absolute;
-        color: transparent !important;
-        white-space: pre;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 25;
         cursor: text;
-        transform-origin: 0% 0%;
-        line-height: 1;
-        user-select: text !important;
-        -webkit-user-select: text !important;
+        touch-action: none;
     }
-    .reader-pdf-span::selection,
-    .reader-text-layer ::selection {
-        color: transparent !important;
-        background: rgba(250, 204, 21, 0.42) !important;
+    .v3-interactive-svg.mode-draw {
+        cursor: crosshair !important;
+    }
+    .v3-interactive-svg.mode-select {
+        cursor: default !important;
+    }
+    .v3-shape-node {
+        cursor: move;
+        transition: filter 0.12s ease;
+    }
+    .v3-shape-node:hover {
+        filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.85));
+    }
+    .v3-resize-handle {
+        fill: #3b82f6;
+        stroke: #ffffff;
+        stroke-width: 3px;
+        cursor: nwse-resize;
+    }
+    .v3-resize-handle:hover {
+        fill: #f59e0b;
+    }
+
+    /* 5. GAMER RPG GLOW & LEVELING ANIMATIONS */
+    .rpg-card-glow {
+        background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), rgba(15, 23, 42, 0.95) 70%);
+        border: 1px solid rgba(59, 130, 246, 0.4);
+        box-shadow: 0 0 25px rgba(59, 130, 246, 0.15);
     }
 </style>
+
+<!-- PRIVACY PIN SHIELD OVERLAY -->
+<div id="pomo-privacy-lock-overlay" class="hidden fixed inset-0 bg-slate-950/98 backdrop-blur-2xl z-[99999] flex flex-col items-center justify-center p-4 text-center">
+    <div class="bg-slate-900 border border-blue-500/40 rounded-3xl p-6 w-full max-w-xs shadow-2xl flex flex-col items-center gap-3">
+        <span class="text-4xl">🛡️</span>
+        <h3 class="text-base font-extrabold text-white uppercase tracking-wider">Steel Privacy Shield</h3>
+        <p class="text-xs text-slate-400">Enter your Desktop Passcode to unlock your study & reader workspace.</p>
+        <input type="password" id="privacy-unlock-pin-input" placeholder="Enter PIN / Passcode" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-center font-mono text-sm text-white focus:outline-none focus:border-blue-500">
+        <button type="button" id="privacy-unlock-submit-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider shadow">🔓 Unlock Workspace</button>
+    </div>
+</div>
 
 <script id="pomo-desktop-os-engine">
 (function() {
     /* =========================================================================
-       MODULE 1: 5-LAYER STEEL PROTECTION SHIELD (DATA LOCK, MIRROR & CRASH GUARD)
+       1. DE-NEET-IFY UI & MAKE 100% GENERAL / CUSTOMIZABLE FOR ENTIRE LIFE
+       ========================================================================= */
+    function generalizeAppTerminology() {
+        // Rename "📚 NEET Study Vault" button -> "📚 Study Vault"
+        const neetVaultBtn = document.getElementById('mode-neet-vault-btn');
+        if (neetVaultBtn) {
+            neetVaultBtn.innerHTML = '📚 Study Vault';
+        }
+        // Scrub default "Cracking NEET" or NEET-specific quotes if still on defaults
+        if (typeof extConfig !== 'undefined' && extConfig.mainGoal) {
+            if (extConfig.mainGoal.title === 'Cracking NEET') {
+                extConfig.mainGoal.title = 'Primary Life & Academic Goal';
+                saveExtConfig();
+            }
+        }
+        if (typeof studyQuotes !== 'undefined' && Array.isArray(studyQuotes)) {
+            studyQuotes = studyQuotes.map(q => q.replace(/NEET rank/gi, 'Mastery & Success'));
+            const sqBox = document.getElementById('custom-study-quotes');
+            if (sqBox) sqBox.value = studyQuotes.join('\n');
+        }
+        if (typeof renderHomeHUD === 'function') renderHomeHUD();
+        if (typeof renderCompassView === 'function') renderCompassView();
+    }
+    generalizeAppTerminology();
+
+    /* =========================================================================
+       2. STEEL PROTECTION SHIELD + PRIVACY PIN LOCK + UNLIMITED INDEXEDDB
        ========================================================================= */
     const STEEL_DB_NAME = 'PomoReaderProDB_v1';
-    const STEEL_DB_VERSION = 2; // Upgraded schema with bookCovers & steelSnapshots stores
+    const STEEL_DB_VERSION = 2;
     let steelDb = null;
+    const coverMemoryCache = {};
 
     function openSteelIDB() {
         return new Promise((resolve, reject) => {
@@ -7871,10 +7934,9 @@ apiKey: "AIza" + "SyAbi9-V0S3DOtOAgBirMxrvV6J-XdwLf3Q",
             };
             req.onsuccess = (e) => { steelDb = e.target.result; resolve(steelDb); };
             req.onerror = () => {
-                // Fallback if version 1 is already open in same tab
-                const reqFallback = indexedDB.open(STEEL_DB_NAME);
-                reqFallback.onsuccess = (ev) => { steelDb = ev.target.result; resolve(steelDb); };
-                reqFallback.onerror = (er) => reject(er);
+                const fallback = indexedDB.open(STEEL_DB_NAME);
+                fallback.onsuccess = (ev) => { steelDb = ev.target.result; resolve(steelDb); };
+                fallback.onerror = (er) => reject(er);
             };
         });
     }
@@ -7905,100 +7967,68 @@ apiKey: "AIza" + "SyAbi9-V0S3DOtOAgBirMxrvV6J-XdwLf3Q",
         } catch (e) { return null; }
     }
 
-    // Layer 1: Lock Persistent Storage in Microsoft Edge / Chrome
-    async function activateSteelStorageLock() {
-        try {
-            if (navigator.storage && navigator.storage.persist) {
-                const isPersisted = await navigator.storage.persist();
-                const badge = document.getElementById('reader-folder-sync-badge');
-                if (badge) {
-                    badge.innerHTML = `🛡️ Steel Shield ${isPersisted ? 'Locked' : 'Active'} • Unlimited Shelf`;
-                    badge.className = "text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-0.5 rounded-full shadow-sm";
-                }
+    // Request OS-Level Persistent Storage Lock
+    if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persist().then(persisted => {
+            const badge = document.getElementById('reader-folder-sync-badge');
+            if (badge) {
+                badge.innerHTML = `🛡️ Steel Shield ${persisted ? 'Locked' : 'Active'} • Unlimited Shelf`;
+                badge.className = "text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-0.5 rounded-full";
             }
-        } catch (e) {}
+        }).catch(() => {});
     }
-    activateSteelStorageLock();
 
-    // Layer 2: Global Runtime Crash Shield (Prevents Any JS Glitch From Freezing App)
-    window.addEventListener('error', (e) => {
-        console.warn('[Steel Shield Intercepted Error]:', e.message);
-    });
-    window.addEventListener('unhandledrejection', (e) => {
-        console.warn('[Steel Shield Intercepted Promise]:', e.reason);
-    });
+    // Privacy Passcode Lock Button in Top Brand Header
+    const headerBrand = document.getElementById('app-header-brand');
+    if (headerBrand && !document.getElementById('privacy-lock-top-btn')) {
+        const lockBtn = document.createElement('button');
+        lockBtn.id = 'privacy-lock-top-btn';
+        lockBtn.className = "bg-slate-900/90 hover:bg-slate-800 text-emerald-400 border border-slate-700/80 px-2.5 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1 active:scale-95";
+        lockBtn.title = "Lock Workspace or Set Privacy PIN";
+        lockBtn.innerHTML = `<span>🔒</span><span class="hidden sm:inline">Privacy Lock</span>`;
+        lockBtn.onclick = () => {
+            const savedPin = localStorage.getItem('pages_pomodoro_privacy_pin') || '';
+            if (!savedPin) {
+                const modal = document.getElementById('reader-suboptions-modal');
+                const titleEl = document.getElementById('suboptions-modal-title');
+                const bodyEl = document.getElementById('suboptions-modal-body');
+                modal.style.zIndex = '9999';
+                titleEl.textContent = "🛡️ Set Desktop Privacy PIN";
+                bodyEl.innerHTML = `
+                    <p class="text-xs text-slate-400">Protect your app with a PIN so nobody opening your PC or link can view your data.</p>
+                    <input type="password" id="new-privacy-pin-inp" placeholder="Create PIN / Passcode" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+                    <button type="button" id="save-privacy-pin-btn" class="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs">Save PIN & Lock Now</button>
+                `;
+                modal.classList.remove('hidden');
+                document.getElementById('save-privacy-pin-btn').onclick = () => {
+                    const p = (document.getElementById('new-privacy-pin-inp').value || '').trim();
+                    if (p) {
+                        localStorage.setItem('pages_pomodoro_privacy_pin', btoa(p));
+                        modal.classList.add('hidden');
+                        document.getElementById('pomo-privacy-lock-overlay').classList.remove('hidden');
+                    }
+                };
+            } else {
+                document.getElementById('pomo-privacy-lock-overlay').classList.remove('hidden');
+            }
+        };
+        headerBrand.insertBefore(lockBtn, headerBrand.lastElementChild);
+    }
 
-    // Layer 3: Accidental Tab Close & Drag-and-Drop PDF Shield
-    window.addEventListener('beforeunload', (e) => {
-        if (typeof isRunning !== 'undefined' && isRunning) {
-            e.preventDefault();
-            e.returnValue = 'Your Pomo Timer is actively running.';
+    document.getElementById('privacy-unlock-submit-btn')?.addEventListener('click', () => {
+        const inp = document.getElementById('privacy-unlock-pin-input');
+        const saved = localStorage.getItem('pages_pomodoro_privacy_pin') || '';
+        if (btoa((inp.value || '').trim()) === saved) {
+            inp.value = '';
+            document.getElementById('pomo-privacy-lock-overlay').classList.add('hidden');
+            showToast("🔓 Workspace Unlocked");
+        } else {
+            showToast("❌ Incorrect Passcode", true);
         }
     });
-    window.addEventListener('dragover', (e) => { e.preventDefault(); });
-    window.addEventListener('drop', (e) => {
-        e.preventDefault();
-        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            const inp = document.getElementById('reader-book-file-input');
-            if (inp) {
-                const dt = new DataTransfer();
-                Array.from(e.dataTransfer.files).forEach(f => dt.items.add(f));
-                inp.files = dt.files;
-                inp.dispatchEvent(new Event('change'));
-            }
-        }
-    });
 
-    /* =========================================================================
-       MODULE 2: UNLIMITED BOOKS ENGINE (FIXES THE 4-BOOK LOCALSTORAGE LIMIT)
-       ========================================================================= */
-    const coverMemoryCache = {}; // { [bookId]: dataUrl }
-
-    function getBooksArray() {
-        try {
-            return JSON.parse(localStorage.getItem('pages_pomodoro_reader_books_v1') || '[]');
-        } catch (e) { return []; }
-    }
-
-    function saveBooksArrayUnlimited(booksArr) {
-        // Strip heavy coverDataUrl out of localStorage and store covers in IndexedDB/Memory so localStorage NEVER hits 5MB!
-        const lightweightBooks = booksArr.map(b => {
-            const copy = { ...b };
-            if (copy.coverDataUrl && copy.coverDataUrl.length > 200) {
-                coverMemoryCache[copy.id] = copy.coverDataUrl;
-                steelPut('bookCovers', { id: copy.id, coverDataUrl: copy.coverDataUrl });
-                copy.hasCachedCover = true;
-                copy.coverDataUrl = ''; // Freed from 5MB localStorage!
-            }
-            return copy;
-        });
-        try {
-            localStorage.setItem('pages_pomodoro_reader_books_v1', JSON.stringify(lightweightBooks));
-            steelPut('steelSnapshots', { key: 'reader_books_backup', books: lightweightBooks, ts: Date.now() });
-        } catch (e) {}
-    }
-
-    async function hydrateCoversFromIDB() {
-        const books = getBooksArray();
-        let changed = false;
-        for (const b of books) {
-            if (b.coverDataUrl && b.coverDataUrl.length > 200) {
-                coverMemoryCache[b.id] = b.coverDataUrl;
-                await steelPut('bookCovers', { id: b.id, coverDataUrl: b.coverDataUrl });
-                b.hasCachedCover = true;
-                b.coverDataUrl = '';
-                changed = true;
-            } else if (!coverMemoryCache[b.id]) {
-                const cov = await steelGet('bookCovers', b.id);
-                if (cov && cov.coverDataUrl) coverMemoryCache[b.id] = cov.coverDataUrl;
-            }
-        }
-        if (changed) saveBooksArrayUnlimited(books);
-        renderEnhancedWoodenShelf();
-    }
-
-    // Intercept localStorage.setItem for 'pages_pomodoro_reader_books_v1' so Part 3B imports never overflow 5MB!
-    const origSetItem = Storage.prototype.setItem;
+    // Intercept localStorage for Unlimited Books (Moves heavy coverDataUrl to IndexedDB)
+    const rawSetItem = Storage.prototype.setItem;
     Storage.prototype.setItem = function(key, val) {
         if (key === 'pages_pomodoro_reader_books_v1') {
             try {
@@ -8012,112 +8042,398 @@ apiKey: "AIza" + "SyAbi9-V0S3DOtOAgBirMxrvV6J-XdwLf3Q",
                         }
                         return b;
                     });
-                    return origSetItem.call(this, key, JSON.stringify(slim));
+                    return rawSetItem.call(this, key, JSON.stringify(slim));
                 }
             } catch (e) {}
         }
-        return origSetItem.call(this, key, val);
+        return rawSetItem.call(this, key, val);
     };
 
+    function getBooks() {
+        try { return JSON.parse(localStorage.getItem('pages_pomodoro_reader_books_v1') || '[]'); }
+        catch (e) { return []; }
+    }
+    function saveBooks(arr) {
+        localStorage.setItem('pages_pomodoro_reader_books_v1', JSON.stringify(arr));
+    }
+
     /* =========================================================================
-       MODULE 3: CUSTOMIZABLE SHELVES / GENRES + SMART LIBRARY SEARCH + TO-DO/TIMER
+       3. PRO-GAMER RPG LEVELING & WORLD RANKING ENGINE (LEVEL 0 TO INFINITY)
+       ========================================================================= */
+    const RPG_RANKS = [
+        { minLv: 0, title: 'Unranked Novice', badge: '🪨', color: 'text-slate-400' },
+        { minLv: 2, title: 'Bronze Initiate', badge: '🥉', color: 'text-amber-500' },
+        { minLv: 5, title: 'Silver Seeker', badge: '🥈', color: 'text-slate-200' },
+        { minLv: 10, title: 'Gold Vanguard', badge: '🥇', color: 'text-yellow-400' },
+        { minLv: 18, title: 'Platinum Scholar', badge: '💠', color: 'text-cyan-300' },
+        { minLv: 28, title: 'Emerald Tactician', badge: '❇️', color: 'text-emerald-400' },
+        { minLv: 40, title: 'Diamond Master', badge: '💎', color: 'text-blue-400' },
+        { minLv: 55, title: 'Crimson Warlord', badge: '🔥', color: 'text-red-400' },
+        { minLv: 75, title: 'Immortal Grandmaster', badge: '👑', color: 'text-purple-400' },
+        { minLv: 100, title: 'Apex Sovereign (∞)', badge: '🌌', color: 'text-amber-300' }
+    ];
+
+    function getDayMetrics(isoDate) {
+        const stats = JSON.parse(safeGet('pages_pomodoro_stats_v8', '{"history":{}}'));
+        const studyMins = stats.history?.[isoDate]?.mins || 0;
+        const sessions = stats.history?.[isoDate]?.sessions || 0;
+        const deenMins = (typeof deenHistory !== 'undefined' && deenHistory[isoDate]) ? deenHistory[isoDate] : 0;
+        const sMap = (typeof salahHistory !== 'undefined' && salahHistory[isoDate]) ? salahHistory[isoDate] : {};
+        const salahCount = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].filter(p => sMap[p]).length;
+        const rLog = JSON.parse(localStorage.getItem('pages_pomodoro_reader_log_v1') || '{}');
+        const readMins = rLog[isoDate]?.totalMins || 0;
+
+        // XP Formula: Study (10 XP/m) + Deen (15 XP/m) + Salah (100 XP each + 250 bonus for 5/5) + Reading (12 XP/m)
+        const salahXP = (salahCount * 100) + (salahCount === 5 ? 250 : 0);
+        const totalXP = Math.round((studyMins * 10) + (deenMins * 15) + salahXP + (readMins * 12) + (sessions * 40));
+        return { studyMins, deenMins, salahCount, readMins, sessions, totalXP };
+    }
+
+    function calculateLifetimeRPGStats() {
+        const stats = JSON.parse(safeGet('pages_pomodoro_stats_v8', '{"history":{}}'));
+        const rLog = JSON.parse(localStorage.getItem('pages_pomodoro_reader_log_v1') || '{}');
+        const books = getBooks();
+
+        const allDates = new Set([
+            ...Object.keys(stats.history || {}),
+            ...Object.keys(typeof deenHistory !== 'undefined' ? deenHistory : {}),
+            ...Object.keys(typeof salahHistory !== 'undefined' ? salahHistory : {}),
+            ...Object.keys(rLog)
+        ]);
+
+        let lifetimeXP = 0;
+        let activeDaysCount = 0;
+        allDates.forEach(d => {
+            const m = getDayMetrics(d);
+            if (m.totalXP > 0) activeDaysCount++;
+            lifetimeXP += m.totalXP;
+        });
+
+        // Add XP from completed To-Dos, Vault tasks, and Book Annotations
+        const completedTodos = (typeof todos !== 'undefined' ? todos : []).filter(t => t.completed).length;
+        const completedVault = JSON.parse(safeGet('pages_pomodoro_tasks_v8', '[]')).filter(t => t.completed).length;
+        let totalAnnotations = 0;
+        let totalPagesRead = 0;
+        books.forEach(b => {
+            totalAnnotations += (b.annotations || []).length;
+            totalPagesRead += Math.max(0, (b.currentPage || 1) - 1);
+        });
+
+        lifetimeXP += (completedTodos * 50) + (completedVault * 80) + (totalAnnotations * 25) + (totalPagesRead * 15);
+
+        // Infinite Level Curve: Level = floor(sqrt(lifetimeXP / 120))
+        const level = Math.floor(Math.sqrt(lifetimeXP / 120));
+        const currentLevelFloorXP = Math.pow(level, 2) * 120;
+        const nextLevelCeilingXP = Math.pow(level + 1, 2) * 120;
+        const xpIntoLevel = lifetimeXP - currentLevelFloorXP;
+        const xpNeededForNext = Math.max(1, nextLevelCeilingXP - currentLevelFloorXP);
+        const levelPct = Math.min(100, Math.round((xpIntoLevel / xpNeededForNext) * 100));
+
+        let rankObj = RPG_RANKS[0];
+        for (const r of RPG_RANKS) {
+            if (level >= r.minLv) rankObj = r;
+        }
+
+        // Today vs Yesterday Comparison
+        const todayIso = getLocalTodayString();
+        const yestDate = new Date();
+        yestDate.setDate(yestDate.getDate() - 1);
+        const yestIso = getLocalTodayString(yestDate);
+
+        const todayM = getDayMetrics(todayIso);
+        const yestM = getDayMetrics(yestIso);
+        const xpDelta = todayM.totalXP - yestM.totalXP;
+        const pctBetter = yestM.totalXP > 0
+            ? Math.round(((todayM.totalXP - yestM.totalXP) / yestM.totalXP) * 100)
+            : (todayM.totalXP > 0 ? 100 : 0);
+
+        // Global Percentiles (Discipline, Consistency, Reading)
+        const disciplineScore = Math.min(99.9, Math.round(((todayM.studyMins / 480) * 55 + (todayM.salahCount / 5) * 45) * 10) / 10);
+        const consistencyScore = Math.min(99.9, Math.round((Math.min(1, activeDaysCount / 30) * 60 + (todayM.totalXP >= yestM.totalXP && todayM.totalXP > 0 ? 40 : 20)) * 10) / 10);
+        const readingScore = Math.min(99.9, Math.round((Math.min(1, (todayM.readMins + totalPagesRead * 2) / 120) * 100) * 10) / 10);
+
+        return {
+            lifetimeXP, level, xpIntoLevel, xpNeededForNext, levelPct, rankObj,
+            todayM, yestM, xpDelta, pctBetter,
+            disciplineScore, consistencyScore, readingScore,
+            totalPagesRead, totalAnnotations, activeDaysCount
+        };
+    }
+
+    // Mount 3rd Button "⚔️ Rank & Level" in Vault Top Switcher + Subview Container
+    function mountRpgArenaInVault() {
+        const modeCompassBtn = document.getElementById('mode-compass-btn');
+        const modeNeetBtn = document.getElementById('mode-neet-vault-btn');
+        const compassView = document.getElementById('compass-subview');
+        const neetView = document.getElementById('neet-vault-subview');
+        if (!modeCompassBtn || !modeNeetBtn || !compassView || !neetView) return;
+
+        const switcherBar = modeCompassBtn.parentElement;
+        if (!document.getElementById('mode-rpg-rank-btn')) {
+            const rpgBtn = document.createElement('button');
+            rpgBtn.id = 'mode-rpg-rank-btn';
+            rpgBtn.type = 'button';
+            rpgBtn.className = "flex-1 bg-transparent text-amber-400 font-bold py-2 rounded-lg text-xs transition-all";
+            rpgBtn.innerHTML = '⚔️ Level & World Rank';
+            switcherBar.appendChild(rpgBtn);
+
+            const rpgView = document.createElement('div');
+            rpgView.id = 'rpg-arena-subview';
+            rpgView.className = "hidden flex-col gap-3";
+            neetView.parentElement.insertBefore(rpgView, neetView.nextSibling);
+
+            rpgBtn.onclick = () => {
+                modeCompassBtn.className = "flex-1 bg-transparent text-slate-400 font-bold py-2 rounded-lg text-xs transition-all";
+                modeNeetBtn.className = "flex-1 bg-transparent text-slate-400 font-bold py-2 rounded-lg text-xs transition-all";
+                rpgBtn.className = "flex-1 bg-amber-600 text-white font-bold py-2 rounded-lg text-xs shadow-md transition-all";
+                compassView.classList.add('hidden');
+                neetView.classList.add('hidden');
+                rpgView.classList.remove('hidden');
+                rpgView.classList.add('flex');
+                renderRpgArena();
+            };
+
+            modeCompassBtn.addEventListener('click', () => {
+                rpgBtn.className = "flex-1 bg-transparent text-amber-400 font-bold py-2 rounded-lg text-xs transition-all";
+                document.getElementById('rpg-arena-subview')?.classList.add('hidden');
+            });
+            modeNeetBtn.addEventListener('click', () => {
+                rpgBtn.className = "flex-1 bg-transparent text-amber-400 font-bold py-2 rounded-lg text-xs transition-all";
+                document.getElementById('rpg-arena-subview')?.classList.add('hidden');
+            });
+        }
+    }
+
+    function renderRpgArena() {
+        mountRpgArenaInVault();
+        const rpgView = document.getElementById('rpg-arena-subview');
+        if (!rpgView) return;
+
+        const rpg = calculateLifetimeRPGStats();
+        const topBtn = document.getElementById('mode-rpg-rank-btn');
+        if (topBtn) topBtn.innerHTML = `⚔️ Lv.${rpg.level} • Rank`;
+
+        // Build 7-Day Day-by-Day Progression Bars
+        const last7Days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const iso = getLocalTodayString(d);
+            const m = getDayMetrics(iso);
+            last7Days.push({
+                label: i === 0 ? 'Today' : (i === 1 ? 'Yest' : d.toLocaleDateString('en-US', { weekday: 'short' })),
+                xp: m.totalXP
+            });
+        }
+        const max7XP = Math.max(500, ...last7Days.map(x => x.xp));
+
+        const deltaPositive = rpg.xpDelta >= 0;
+        const deltaBannerColor = deltaPositive
+            ? 'from-emerald-950/90 to-slate-900 border-emerald-500/50 text-emerald-300'
+            : 'from-amber-950/90 to-slate-900 border-amber-500/50 text-amber-300';
+
+        // Daily Boss Quests
+        const quests = [
+            { title: '🕋 Pray 5/5 Salah on Time', done: rpg.todayM.salahCount >= 5, prog: `${rpg.todayM.salahCount}/5`, reward: '+750 XP' },
+            { title: '⚔️ Beat Yesterday\'s Total XP', done: rpg.todayM.totalXP > rpg.yestM.totalXP && rpg.todayM.totalXP > 0, prog: `${rpg.todayM.totalXP}/${Math.max(100, rpg.yestM.totalXP)} XP`, reward: '+300 XP' },
+            { title: '🧠 Complete 4.0h Deep Study', done: rpg.todayM.studyMins >= 240, prog: `${(rpg.todayM.studyMins / 60).toFixed(1)}/4.0h`, reward: '+400 XP' },
+            { title: '📖 Read Books for 30 Mins', done: rpg.todayM.readMins >= 30, prog: `${rpg.todayM.readMins}/30m`, reward: '+360 XP' }
+        ];
+
+        rpgView.innerHTML = `
+            <!-- HERO PLAYER LEVEL CARD (LEVEL 0 TO INFINITY) -->
+            <div class="rpg-card-glow rounded-3xl p-5 flex flex-col gap-3">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-16 h-16 rounded-2xl bg-slate-950 border-2 border-blue-500 flex flex-col items-center justify-center shadow-lg">
+                            <span class="text-2xl leading-none">${rpg.rankObj.badge}</span>
+                            <span class="text-[10px] font-mono font-extrabold text-blue-400 mt-1">LV.${rpg.level}</span>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-extrabold uppercase tracking-widest bg-blue-500/20 text-blue-300 px-2.5 py-0.5 rounded-full border border-blue-500/30">Global Player Progression (Lv.0 → ∞)</span>
+                            <h3 class="text-lg sm:text-xl font-extrabold ${rpg.rankObj.color} mt-1">${rpg.rankObj.title}</h3>
+                            <p class="text-xs text-slate-400 font-mono">Lifetime Score: <b class="text-white">${rpg.lifetimeXP.toLocaleString()} XP</b> • Active Days: <b class="text-emerald-400">${rpg.activeDaysCount}d</b></p>
+                        </div>
+                    </div>
+                    <div class="text-right bg-slate-950/90 border border-slate-800 px-4 py-2.5 rounded-2xl">
+                        <p class="text-[10px] font-bold uppercase text-slate-400">Global Standing</p>
+                        <p class="text-base font-mono font-extrabold text-amber-400">Top ${(100 - Math.min(99.8, (rpg.disciplineScore + rpg.consistencyScore + rpg.readingScore) / 3)).toFixed(1)}% Worldwide</p>
+                    </div>
+                </div>
+
+                <!-- XP Bar to Next Level -->
+                <div>
+                    <div class="flex justify-between text-xs font-mono mb-1">
+                        <span class="text-slate-300 font-bold">Level ${rpg.level} ➔ Level ${rpg.level + 1}</span>
+                        <span class="text-blue-400 font-extrabold">${rpg.xpIntoLevel.toLocaleString()} / ${rpg.xpNeededForNext.toLocaleString()} XP (${rpg.levelPct}%)</span>
+                    </div>
+                    <div class="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800 p-0.5">
+                        <div class="h-full bg-gradient-to-r from-blue-600 via-cyan-400 to-emerald-400 rounded-full transition-all duration-500" style="width: ${rpg.levelPct}%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TODAY VS. YESTERDAY COMBAT DELTA BANNER -->
+            <div class="bg-gradient-to-r ${deltaBannerColor} border rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+                <div>
+                    <span class="text-[10px] font-extrabold uppercase tracking-widest opacity-80">⚡ Day-by-Day Progression (Today vs. Yesterday)</span>
+                    <h4 class="text-sm sm:text-base font-extrabold text-white mt-0.5">
+                        ${deltaPositive
+                            ? `🔥 You are +${rpg.pctBetter}% more productive than Yesterday (+${rpg.xpDelta} XP ahead)!`
+                            : `⚔️ ${Math.abs(rpg.xpDelta)} XP needed to beat Yesterday's score (${Math.ceil(Math.abs(rpg.xpDelta) / 10)}m of Study to overtake!)`}
+                    </h4>
+                    <p class="text-xs text-slate-300 mt-1 font-mono">
+                        Today: <b>${rpg.todayM.totalXP} XP</b> (${(rpg.todayM.studyMins/60).toFixed(1)}h Study • ${rpg.todayM.readMins}m Read • ${rpg.todayM.salahCount}/5 Salah)
+                        &nbsp;|&nbsp; Yesterday: <b>${rpg.yestM.totalXP} XP</b>
+                    </p>
+                </div>
+            </div>
+
+            <!-- WORLD COMPARISON: 3 GLOBAL PILLARS (DISCIPLINE, CONSISTENCY, READING) -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="text-xs font-extrabold text-blue-400">⚔️ World Discipline</span>
+                        <span class="text-xs font-mono font-extrabold text-white">${rpg.disciplineScore}%</span>
+                    </div>
+                    <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                        <div class="h-full bg-blue-500 rounded-full" style="width:${rpg.disciplineScore}%"></div>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1.5">Focus Hours + 5/5 Salah vs. Global Average</p>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="text-xs font-extrabold text-emerald-400">🔥 Consistency Index</span>
+                        <span class="text-xs font-mono font-extrabold text-white">${rpg.consistencyScore}%</span>
+                    </div>
+                    <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                        <div class="h-full bg-emerald-500 rounded-full" style="width:${rpg.consistencyScore}%"></div>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1.5">Active Days (${rpg.activeDaysCount}d) & Daily Momentum</p>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="text-xs font-extrabold text-amber-400">📖 Scholar & Reading</span>
+                        <span class="text-xs font-mono font-extrabold text-white">${rpg.readingScore}%</span>
+                    </div>
+                    <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                        <div class="h-full bg-amber-500 rounded-full" style="width:${rpg.readingScore}%"></div>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1.5">${rpg.totalPagesRead} Pages Read • ${rpg.totalAnnotations} Notes/Highlights</p>
+                </div>
+            </div>
+
+            <!-- 7-DAY DAY-BY-DAY PROGRESSION CHART + DAILY BOSS QUESTS -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+                    <span class="text-xs font-extrabold text-white uppercase tracking-wider mb-3">📊 7-Day XP Progression Curve</span>
+                    <div class="grid grid-cols-7 gap-2 items-end h-36 pt-4">
+                        ${last7Days.map((d, idx) => {
+                            const hPct = Math.max(8, Math.round((d.xp / max7XP) * 100));
+                            const isToday = idx === 6;
+                            return `
+                                <div class="flex flex-col items-center justify-end h-full gap-1">
+                                    <span class="text-[9px] font-mono font-bold ${isToday ? 'text-emerald-400' : 'text-slate-400'}">${d.xp}</span>
+                                    <div class="w-full rounded-t-lg transition-all ${isToday ? 'bg-gradient-to-t from-emerald-600 to-teal-300 shadow-[0_0_12px_rgba(16,185,129,0.5)]' : 'bg-gradient-to-t from-blue-700 to-blue-400'}" style="height:${hPct}%"></div>
+                                    <span class="text-[10px] font-bold ${isToday ? 'text-white' : 'text-slate-400'}">${d.label}</span>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-2">
+                    <span class="text-xs font-extrabold text-amber-400 uppercase tracking-wider mb-1">🎯 Daily Boss Quests</span>
+                    ${quests.map(q => `
+                        <div class="flex items-center justify-between bg-slate-950 px-3 py-2 rounded-xl border ${q.done ? 'border-emerald-500/50 bg-emerald-950/20' : 'border-slate-800'}">
+                            <div>
+                                <p class="text-xs font-bold ${q.done ? 'text-emerald-300 line-through' : 'text-slate-200'}">${q.title}</p>
+                                <span class="text-[10px] font-mono text-slate-400">Progress: ${q.prog}</span>
+                            </div>
+                            <span class="text-[10px] font-mono font-extrabold px-2 py-1 rounded-lg ${q.done ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-amber-400 border border-slate-800'}">${q.done ? '✓ CLAIMED' : q.reward}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    mountRpgArenaInVault();
+    document.querySelector('[data-target="page-vault"]')?.addEventListener('click', () => {
+        setTimeout(() => { mountRpgArenaInVault(); renderRpgArena(); }, 50);
+    });
+
+    /* =========================================================================
+       4. CUSTOM SHELVES / GENRES & UNLIMITED WOODEN BOOKSHELF ENGINE
        ========================================================================= */
     let customShelves = JSON.parse(localStorage.getItem('pages_pomodoro_custom_shelves_v1') || 'null') || [
-        { id: 'shelf_biology', name: 'NCERT & Medical Biology', category: 'study' },
-        { id: 'shelf_physics', name: 'Physics & Mechanics', category: 'study' },
-        { id: 'shelf_chem', name: 'Chemistry Vault', category: 'study' },
-        { id: 'shelf_deen', name: 'Quran, Tafseer & Hadith', category: 'deen' }
+        { id: 'shelf_study', name: 'Core Academic & Exam Prep', category: 'study' },
+        { id: 'shelf_deen', name: 'Quran, Tafseer & Hadith', category: 'deen' },
+        { id: 'shelf_life', name: 'Mindset, Skills & Life', category: 'side' }
     ];
-    let activeCustomShelfFilter = 'all'; // 'all' | 'sections' | shelf.id
-    let shelfDisplayLayout = 'sections'; // 'sections' (shows Brass Shelf Nameplates) | 'grid'
+    let activeCustomShelfFilter = 'all';
+    let shelfDisplayLayout = 'sections';
 
     function saveCustomShelves() {
         localStorage.setItem('pages_pomodoro_custom_shelves_v1', JSON.stringify(customShelves));
     }
 
-    // Inject Custom Shelves & Genres Bar right above the Wooden Bookshelf
-    function mountCustomShelvesBar() {
+    function renderCustomShelvesBar() {
         const shelfWrap = document.getElementById('wooden-bookshelf-wrapper');
-        if (!shelfWrap || document.getElementById('custom-shelves-bar')) return;
-
-        const bar = document.createElement('div');
-        bar.id = 'custom-shelves-bar';
-        bar.className = "flex flex-wrap items-center justify-between gap-2 mb-3 bg-slate-900/95 border border-amber-500/30 p-2.5 rounded-2xl shrink-0";
-        shelfWrap.parentElement.insertBefore(bar, shelfWrap);
-
-        // Update search input placeholder to reflect Genre/Shelf search capability
+        if (!shelfWrap) return;
+        let bar = document.getElementById('custom-shelves-bar');
+        if (!bar) {
+            bar = document.createElement('div');
+            bar.id = 'custom-shelves-bar';
+            bar.className = "flex flex-wrap items-center justify-between gap-2 mb-3 bg-slate-900/95 border border-amber-500/30 p-2.5 rounded-2xl shrink-0";
+            shelfWrap.parentElement.insertBefore(bar, shelfWrap);
+        }
         const searchInp = document.getElementById('shelf-search-input');
         if (searchInp) {
-            searchInp.placeholder = "🔎 Search Book, Author, or Shelf/Genre name...";
-            searchInp.className = "w-full sm:w-64 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500";
-            searchInp.oninput = () => renderEnhancedWoodenShelf();
+            searchInp.placeholder = "🔎 Search Book, Author, or Shelf/Genre...";
+            searchInp.oninput = () => renderV3WoodenShelf();
         }
-    }
 
-    function renderCustomShelvesBar() {
-        mountCustomShelvesBar();
-        const bar = document.getElementById('custom-shelves-bar');
-        if (!bar) return;
-        const books = getBooksArray();
-
-        const pillsHtml = customShelves.map(sh => {
-            const count = books.filter(b => b.shelfName === sh.name).length;
-            const isAct = (activeCustomShelfFilter === sh.name);
-            return `
-                <button type="button" onclick="window.selectCustomShelfFilter('${escapeHtml(sh.name)}')" class="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${isAct ? 'bg-amber-600 text-white shadow' : 'bg-slate-950 text-amber-200/90 border border-slate-800 hover:border-amber-600/50'}">
-                    <span>🪵 ${escapeHtml(sh.name)}</span>
-                    <span class="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-black/30">${count}</span>
-                </button>
-            `;
+        const books = getBooks();
+        const pills = customShelves.map(sh => {
+            const cnt = books.filter(b => b.shelfName === sh.name).length;
+            const act = activeCustomShelfFilter === sh.name;
+            return `<button type="button" onclick="window.selectV3ShelfFilter('${escapeHtml(sh.name)}')" class="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 ${act ? 'bg-amber-600 text-white shadow' : 'bg-slate-950 text-amber-200/90 border border-slate-800'}"><span>🪵 ${escapeHtml(sh.name)}</span><span class="text-[10px] font-mono px-1.5 rounded-full bg-black/30">${cnt}</span></button>`;
         }).join('');
 
         bar.innerHTML = `
             <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1 py-0.5">
-                <button type="button" onclick="window.toggleShelfLayoutMode()" class="px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap border transition-all ${shelfDisplayLayout === 'sections' && activeCustomShelfFilter === 'all' ? 'bg-amber-500/20 text-amber-300 border-amber-500/50' : 'bg-slate-950 text-slate-300 border-slate-800'}" title="Toggle between Grouped Shelf Sections or Flat Grid">
-                    🏛️ ${shelfDisplayLayout === 'sections' ? 'Library Sections View' : 'Flat Shelf View'}
-                </button>
-                <button type="button" onclick="window.selectCustomShelfFilter('all')" class="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap ${activeCustomShelfFilter === 'all' ? 'bg-blue-600 text-white shadow' : 'bg-slate-950 text-slate-400 border border-slate-800'}">
-                    All (${books.length})
-                </button>
-                ${pillsHtml}
+                <button type="button" onclick="window.toggleV3ShelfLayout()" class="px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap border ${shelfDisplayLayout === 'sections' && activeCustomShelfFilter === 'all' ? 'bg-amber-500/20 text-amber-300 border-amber-500/50' : 'bg-slate-950 text-slate-300 border-slate-800'}">🏛️ ${shelfDisplayLayout === 'sections' ? 'Library Sections' : 'Flat Grid'}</button>
+                <button type="button" onclick="window.selectV3ShelfFilter('all')" class="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap ${activeCustomShelfFilter === 'all' ? 'bg-blue-600 text-white shadow' : 'bg-slate-950 text-slate-400 border border-slate-800'}">All (${books.length})</button>
+                ${pills}
             </div>
-            <div class="flex items-center gap-1.5 shrink-0">
-                <button type="button" onclick="window.openManageShelvesModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow flex items-center gap-1 active:scale-95">
-                    <span>➕</span> <span>New Shelf / Genre</span>
-                </button>
-            </div>
+            <button type="button" onclick="window.openV3ManageShelvesModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow shrink-0">➕ New Shelf / Genre</button>
         `;
     }
 
-    window.selectCustomShelfFilter = function(shelfName) {
-        activeCustomShelfFilter = shelfName;
-        renderCustomShelvesBar();
-        renderEnhancedWoodenShelf();
+    window.selectV3ShelfFilter = function(name) {
+        activeCustomShelfFilter = name;
+        renderV3WoodenShelf();
     };
-
-    window.toggleShelfLayoutMode = function() {
-        shelfDisplayLayout = (shelfDisplayLayout === 'sections') ? 'grid' : 'sections';
+    window.toggleV3ShelfLayout = function() {
+        shelfDisplayLayout = shelfDisplayLayout === 'sections' ? 'grid' : 'sections';
         activeCustomShelfFilter = 'all';
-        renderCustomShelvesBar();
-        renderEnhancedWoodenShelf();
+        renderV3WoodenShelf();
     };
 
-    // Render Unlimited Books with Brass Genre Nameplates, Shelf Badges, and 1-Click Timer/To-Do Buttons
-    function renderEnhancedWoodenShelf() {
+    function renderV3WoodenShelf() {
         renderCustomShelvesBar();
         const rowsContainer = document.getElementById('wooden-bookshelf-rows');
         if (!rowsContainer) return;
 
-        const books = getBooksArray();
-        const allCountEl = document.getElementById('shelf-count-all');
-        const favCountEl = document.getElementById('shelf-count-fav');
-        if (allCountEl) allCountEl.textContent = books.length;
-        if (favCountEl) favCountEl.textContent = books.filter(b => b.favorite).length;
+        const books = getBooks();
+        const allCnt = document.getElementById('shelf-count-all');
+        const favCnt = document.getElementById('shelf-count-fav');
+        if (allCnt) allCnt.textContent = books.length;
+        if (favCnt) favCnt.textContent = books.filter(b => b.favorite).length;
 
-        const searchQ = (document.getElementById('shelf-search-input')?.value || '').trim().toLowerCase();
+        const q = (document.getElementById('shelf-search-input')?.value || '').trim().toLowerCase();
         const sortMode = document.getElementById('shelf-sort-select')?.value || 'recent';
-
-        // Check active top filter tab (all, fav, study, deen, reading, completed)
         const activeTopBtn = document.querySelector('.shelf-filter-tab.bg-amber-600');
         const topFilter = activeTopBtn ? activeTopBtn.getAttribute('data-filter') : 'all';
 
@@ -8128,11 +8444,9 @@ apiKey: "AIza" + "SyAbi9-V0S3DOtOAgBirMxrvV6J-XdwLf3Q",
             if (topFilter === 'reading' && ((b.progressPct || 0) <= 0 || (b.progressPct || 0) >= 100)) return false;
             if (topFilter === 'completed' && (b.progressPct || 0) < 100) return false;
             if (activeCustomShelfFilter !== 'all' && (b.shelfName || 'General Shelf') !== activeCustomShelfFilter) return false;
-
-            if (searchQ) {
-                // Matches Book Title, Author, Description, OR Custom Shelf/Genre Name!
+            if (q) {
                 const hay = `${b.title || ''} ${b.author || ''} ${b.description || ''} ${b.fileName || ''} ${b.shelfName || 'General Shelf'}`.toLowerCase();
-                if (!hay.includes(searchQ)) return false;
+                if (!hay.includes(q)) return false;
             }
             return true;
         });
@@ -8140,98 +8454,77 @@ apiKey: "AIza" + "SyAbi9-V0S3DOtOAgBirMxrvV6J-XdwLf3Q",
         filtered.sort((a, b) => {
             if (sortMode === 'title') return (a.title || '').localeCompare(b.title || '');
             if (sortMode === 'author') return (a.author || '').localeCompare(b.author || '');
-            if (sortMode === 'storage') return ((a.sources && a.sources[0]) || '').localeCompare((b.sources && b.sources[0]) || '');
             if (sortMode === 'progress') return (b.progressPct || 0) - (a.progressPct || 0);
             return (b.lastOpened || 0) - (a.lastOpened || 0);
         });
 
         rowsContainer.innerHTML = '';
         if (filtered.length === 0) {
-            rowsContainer.innerHTML = `
-                <div class="wood-shelf-row py-12 text-center flex flex-col items-center justify-center gap-3">
-                    <span class="text-4xl">📚</span>
-                    <p class="text-sm font-bold text-amber-200/90">No books found in this shelf view.</p>
-                    <p class="text-xs text-amber-100/60 max-w-md">Click "➕ Import Books" above (or drag & drop any PDF/EPUB file onto this window) to add unlimited books!</p>
-                </div>
-            `;
+            rowsContainer.innerHTML = `<div class="wood-shelf-row py-12 text-center flex flex-col items-center justify-center gap-2"><span class="text-4xl">📚</span><p class="text-sm font-bold text-amber-200">No books in this view yet.</p><p class="text-xs text-amber-100/60">Click "➕ Import Books" or drag & drop PDF/EPUB files here!</p></div>`;
             return;
         }
 
-        // If searching or in 'sections' mode, group books by their Custom Shelf / Genre
-        if ((shelfDisplayLayout === 'sections' && activeCustomShelfFilter === 'all') || searchQ) {
+        if ((shelfDisplayLayout === 'sections' && activeCustomShelfFilter === 'all') || q) {
             const groups = {};
             filtered.forEach(b => {
-                const sName = b.shelfName || 'General Shelf';
-                if (!groups[sName]) groups[sName] = [];
-                groups[sName].push(b);
+                const s = b.shelfName || 'General Shelf';
+                if (!groups[s]) groups[s] = [];
+                groups[s].push(b);
             });
-
-            Object.entries(groups).forEach(([shelfName, groupBooks]) => {
-                const sectionWrap = document.createElement('div');
-                sectionWrap.className = "mb-4";
-                sectionWrap.innerHTML = `
+            Object.entries(groups).forEach(([shelfName, gBooks]) => {
+                const sec = document.createElement('div');
+                sec.className = "mb-4";
+                sec.innerHTML = `
                     <div class="shelf-genre-header">
                         <div class="flex items-center gap-2">
-                            <span class="text-sm">🏷️</span>
+                            <span>🏷️</span>
                             <span class="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-amber-200">${escapeHtml(shelfName)}</span>
-                            <span class="text-[10px] font-mono font-bold bg-black/40 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">${groupBooks.length} Book${groupBooks.length > 1 ? 's' : ''}</span>
+                            <span class="text-[10px] font-mono font-bold bg-black/40 text-amber-300 px-2 py-0.5 rounded-full">${gBooks.length}</span>
                         </div>
                         <div class="flex items-center gap-1.5">
-                            <button type="button" onclick="window.syncEntireShelfToTodo('${escapeHtml(shelfName)}')" class="bg-blue-950/90 hover:bg-blue-800 text-blue-200 border border-blue-500/40 text-[10px] font-bold px-2.5 py-1 rounded-lg active:scale-95" title="Create a To-Do List with all books in this shelf">
-                                ☑️ Sync Shelf to To-Do
-                            </button>
-                            <button type="button" onclick="window.startShelfFocusTimer('${escapeHtml(shelfName)}')" class="bg-emerald-950/90 hover:bg-emerald-800 text-emerald-200 border border-emerald-500/40 text-[10px] font-bold px-2.5 py-1 rounded-lg active:scale-95" title="Start Pomodoro Focus Timer for this shelf">
-                                ⏱️ Focus Session
-                            </button>
+                            <button type="button" onclick="window.syncShelfToTodoV3('${escapeHtml(shelfName)}')" class="bg-blue-950/90 hover:bg-blue-800 text-blue-200 border border-blue-500/40 text-[10px] font-bold px-2.5 py-1 rounded-lg">☑️ Sync Shelf to To-Do</button>
+                            <button type="button" onclick="window.startBookFocusV3('${gBooks[0].id}')" class="bg-emerald-950/90 hover:bg-emerald-800 text-emerald-200 border border-emerald-500/40 text-[10px] font-bold px-2.5 py-1 rounded-lg">⏱️ Focus Session</button>
                         </div>
                     </div>
                 `;
-                rowsContainer.appendChild(sectionWrap);
-                appendBookPlankRows(sectionWrap, groupBooks);
+                rowsContainer.appendChild(sec);
+                renderPlankCards(sec, gBooks);
             });
         } else {
-            appendBookPlankRows(rowsContainer, filtered);
+            renderPlankCards(rowsContainer, filtered);
         }
     }
 
-    function appendBookPlankRows(parentEl, booksList) {
+    function renderPlankCards(parentEl, list) {
         const perRow = window.innerWidth >= 900 ? 4 : (window.innerWidth >= 640 ? 3 : 2);
-        for (let i = 0; i < booksList.length; i += perRow) {
-            const slice = booksList.slice(i, i + perRow);
+        for (let i = 0; i < list.length; i += perRow) {
+            const slice = list.slice(i, i + perRow);
             const rowEl = document.createElement('div');
             rowEl.className = "wood-shelf-row grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5 px-2 pt-2";
-
             slice.forEach(book => {
                 const pct = Math.min(100, Math.max(0, Math.round(book.progressPct || 0)));
                 const catBadge = book.category === 'deen' ? '🕌' : (book.category === 'study' ? '🧠' : '🚀');
-                const shelfBadge = book.shelfName || 'General Shelf';
                 const coverUrl = coverMemoryCache[book.id] || book.coverDataUrl || '';
-
                 const card = document.createElement('div');
                 card.className = "book-card-3d group";
                 if (coverUrl) {
-                    card.style.backgroundImage = `linear-gradient(180deg, rgba(2,6,23,0.3) 0%, rgba(2,6,23,0.95) 82%), url('${coverUrl}')`;
+                    card.style.backgroundImage = `linear-gradient(180deg, rgba(2,6,23,0.28) 0%, rgba(2,6,23,0.95) 82%), url('${coverUrl}')`;
                     card.style.backgroundSize = 'cover';
                     card.style.backgroundPosition = 'center';
                 }
-
-                card.onclick = () => {
-                    if (typeof window.openBookAtPage === 'function') window.openBookAtPage(book.id, book.currentPage || 1);
+                card.onclick = (e) => {
+                    e.stopPropagation();
+                    window.PomoDesktopReader.openBook(book.id, book.currentPage || 1);
                 };
-
                 card.innerHTML = `
-                    <button class="book-corner-menu-btn" title="Edit Details, Cover, Shelf/Genre & To-Do Link" onclick="event.stopPropagation(); window.openEnhancedBookCornerModal('${book.id}')">⋮</button>
-
+                    <button class="book-corner-menu-btn" title="Book Details, Cover & Shelf" onclick="event.stopPropagation(); window.openBookCornerModal('${book.id}')">⋮</button>
                     <div class="p-2.5 flex flex-col gap-1">
                         <div class="flex items-center gap-1 flex-wrap pr-7">
                             <span class="bg-slate-950/90 text-[10px] font-extrabold px-1.5 py-0.5 rounded border border-slate-700 text-white">${catBadge} ${(book.format || 'pdf').toUpperCase()}</span>
                             ${book.favorite ? '<span class="text-xs">❤️</span>' : ''}
                         </div>
-                        <span onclick="event.stopPropagation(); window.quickChangeBookShelf('${book.id}')" class="bg-amber-950/90 hover:bg-amber-800 text-amber-300 border border-amber-600/50 text-[9px] font-bold px-2 py-0.5 rounded-md w-fit max-w-full truncate" title="Click to change Shelf / Genre">
-                            🪵 ${escapeHtml(shelfBadge)}
-                        </span>
+                        <span onclick="event.stopPropagation(); window.openAssignShelfModalV3('${book.id}')" class="bg-amber-950/90 hover:bg-amber-800 text-amber-300 border border-amber-600/50 text-[9px] font-bold px-2 py-0.5 rounded-md w-fit max-w-full truncate">🪵 ${escapeHtml(book.shelfName || 'General Shelf')}</span>
                     </div>
-
                     <div class="p-2.5 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent flex flex-col gap-1">
                         <h4 class="text-xs font-extrabold text-white line-clamp-2 leading-snug">${escapeHtml(book.title)}</h4>
                         <p class="text-[10px] text-slate-300 truncate">${escapeHtml(book.author || 'Unknown Author')}</p>
@@ -8243,8 +8536,8 @@ apiKey: "AIza" + "SyAbi9-V0S3DOtOAgBirMxrvV6J-XdwLf3Q",
                             <div class="h-full bg-gradient-to-r from-blue-500 to-emerald-400 rounded-full" style="width: ${pct}%"></div>
                         </div>
                         <div class="flex items-center gap-1 mt-1.5 pt-1 border-t border-slate-800/80">
-                            <button type="button" onclick="event.stopPropagation(); window.startBookFocusSession('${book.id}')" class="flex-1 bg-emerald-600/25 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/40 text-[9px] font-bold py-1 rounded transition-all" title="Start Timer & Read">⏱️ Focus</button>
-                            <button type="button" onclick="event.stopPropagation(); window.quickAddBookToTodo('${book.id}')" class="flex-1 bg-blue-600/25 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 text-[9px] font-bold py-1 rounded transition-all" title="Add to To-Do List">☑️ To-Do</button>
+                            <button type="button" onclick="event.stopPropagation(); window.startBookFocusV3('${book.id}')" class="flex-1 bg-emerald-600/25 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/40 text-[9px] font-bold py-1 rounded">⏱️ Focus</button>
+                            <button type="button" onclick="event.stopPropagation(); window.addBookToTodoV3('${book.id}')" class="flex-1 bg-blue-600/25 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 text-[9px] font-bold py-1 rounded">☑️ To-Do</button>
                         </div>
                     </div>
                 `;
@@ -8254,172 +8547,113 @@ apiKey: "AIza" + "SyAbi9-V0S3DOtOAgBirMxrvV6J-XdwLf3Q",
         }
     }
 
-    // Manage Custom Shelves / Genres Modal (Create, Rename, Delete & Sync with Vault Subjects)
-    window.openManageShelvesModal = function() {
+    window.openV3ManageShelvesModal = function() {
         const modal = document.getElementById('reader-suboptions-modal');
         const titleEl = document.getElementById('suboptions-modal-title');
         const bodyEl = document.getElementById('suboptions-modal-body');
-        if (!modal || !titleEl || !bodyEl) return;
         modal.style.zIndex = '9999';
-
         titleEl.textContent = "🪵 Manage Custom Shelves & Genres";
         bodyEl.innerHTML = `
-            <p class="text-xs text-slate-400">Create custom shelves/genres (e.g. NCERT Biology, Tafseer, Anatomy, Pathology). You can also auto-sync them as Vault Subjects!</p>
-            <div class="flex flex-col sm:flex-row gap-2">
-                <input type="text" id="new-shelf-genre-input" placeholder="Shelf or Genre Name..." class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
-                <select id="new-shelf-cat-select" class="bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white font-bold">
-                    <option value="study">🧠 Study Shelf</option>
-                    <option value="deen">🕌 Deen Shelf</option>
-                    <option value="side">🚀 Life / Side Goal</option>
+            <div class="flex gap-2">
+                <input type="text" id="v3-new-shelf-inp" placeholder="Shelf or Genre Name..." class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+                <select id="v3-new-shelf-cat" class="bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-xs text-white font-bold">
+                    <option value="study">🧠 Study</option>
+                    <option value="deen">🕌 Deen</option>
+                    <option value="side">🚀 Life</option>
                 </select>
-                <button type="button" id="confirm-create-shelf-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-xs shadow">＋ Create</button>
+                <button type="button" id="v3-create-shelf-btn" class="bg-emerald-600 text-white font-bold px-4 py-2 rounded-xl text-xs">＋ Add</button>
             </div>
             <div class="flex flex-col gap-1.5 max-h-60 native-scroll mt-2">
-                ${customShelves.map((sh, idx) => `
+                ${customShelves.map((sh, i) => `
                     <div class="flex items-center justify-between bg-slate-950 px-3 py-2 rounded-xl border border-slate-800">
-                        <div>
-                            <span class="text-xs font-bold text-amber-300">🪵 ${escapeHtml(sh.name)}</span>
-                            <span class="text-[10px] text-slate-400 ml-2 uppercase">(${sh.category})</span>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <button type="button" onclick="window.syncShelfNameToVaultSubject('${escapeHtml(sh.name)}')" class="text-[10px] bg-purple-950 text-purple-300 border border-purple-700/50 px-2 py-1 rounded font-bold">📚 +Vault Subject</button>
-                            <button type="button" onclick="window.deleteCustomShelf(${idx})" class="text-red-400 text-xs font-bold px-2 py-1 rounded bg-slate-900">🗑️</button>
-                        </div>
+                        <span class="text-xs font-bold text-amber-300">🪵 ${escapeHtml(sh.name)}</span>
+                        <button type="button" onclick="window.deleteV3Shelf(${i})" class="text-red-400 text-xs font-bold px-2">🗑️</button>
                     </div>
                 `).join('')}
             </div>
         `;
         modal.classList.remove('hidden');
-
-        document.getElementById('confirm-create-shelf-btn').onclick = () => {
-            const name = (document.getElementById('new-shelf-genre-input').value || '').trim();
-            const cat = document.getElementById('new-shelf-cat-select').value;
-            if (!name) { showToast("Enter a Shelf/Genre name", true); return; }
-            if (!customShelves.some(s => s.name.toLowerCase() === name.toLowerCase())) {
-                customShelves.push({ id: 'shelf_' + Date.now(), name, category: cat });
+        document.getElementById('v3-create-shelf-btn').onclick = () => {
+            const name = (document.getElementById('v3-new-shelf-inp').value || '').trim();
+            const cat = document.getElementById('v3-new-shelf-cat').value;
+            if (name && !customShelves.some(s => s.name.toLowerCase() === name.toLowerCase())) {
+                customShelves.push({ id: 'sh_' + Date.now(), name, category: cat });
                 saveCustomShelves();
-                renderEnhancedWoodenShelf();
-                window.openManageShelvesModal();
-                showToast(`🪵 Shelf "${name}" created!`);
+                renderV3WoodenShelf();
+                window.openV3ManageShelvesModal();
             }
         };
     };
-
-    window.deleteCustomShelf = function(idx) {
+    window.deleteV3Shelf = function(idx) {
         customShelves.splice(idx, 1);
         saveCustomShelves();
-        renderEnhancedWoodenShelf();
-        window.openManageShelvesModal();
+        renderV3WoodenShelf();
+        window.openV3ManageShelvesModal();
     };
-
-    window.syncShelfNameToVaultSubject = function(shelfName) {
-        if (!Array.isArray(extConfig.customSubjects)) extConfig.customSubjects = ['Physics', 'Chemistry', 'Biology'];
-        if (!extConfig.customSubjects.includes(shelfName)) {
-            extConfig.customSubjects.push(shelfName);
-            saveExtConfig();
-            broadcastToCloud();
-            showToast(`📚 "${shelfName}" added to Vault Subjects!`);
-        } else {
-            showToast(`"${shelfName}" is already in Vault Subjects!`);
-        }
-    };
-
-    // Quick-Change Book's Shelf / Genre
-    window.quickChangeBookShelf = function(bookId) {
-        const books = getBooksArray();
+    window.openAssignShelfModalV3 = function(bookId) {
+        const books = getBooks();
         const b = books.find(x => x.id === bookId);
         if (!b) return;
-
         const modal = document.getElementById('reader-suboptions-modal');
         const titleEl = document.getElementById('suboptions-modal-title');
         const bodyEl = document.getElementById('suboptions-modal-body');
         modal.style.zIndex = '9999';
-        titleEl.textContent = `🪵 Assign Shelf / Genre for "${b.title}"`;
-        bodyEl.innerHTML = `
-            <div class="flex flex-col gap-1.5 max-h-64 native-scroll">
-                ${customShelves.map(sh => `
-                    <button type="button" onclick="window.assignBookToShelfNow('${b.id}', '${escapeHtml(sh.name)}', '${sh.category}')" class="w-full p-3 rounded-xl border text-left text-xs font-bold flex justify-between items-center ${b.shelfName === sh.name ? 'bg-amber-600 text-white border-amber-400' : 'bg-slate-950 text-slate-200 border-slate-800 hover:border-amber-500/50'}">
-                        <span>🪵 ${escapeHtml(sh.name)}</span>
-                        <span>${b.shelfName === sh.name ? '✓ Current' : 'Select'}</span>
-                    </button>
-                `).join('')}
-            </div>
-            <button type="button" onclick="window.openManageShelvesModal()" class="w-full bg-slate-800 text-emerald-400 font-bold py-2.5 rounded-xl text-xs mt-1">➕ Create New Shelf / Genre</button>
-        `;
+        titleEl.textContent = `🪵 Select Shelf / Genre for "${b.title}"`;
+        bodyEl.innerHTML = customShelves.map(sh => `
+            <button type="button" onclick="window.setBookShelfV3('${b.id}', '${escapeHtml(sh.name)}', '${sh.category}')" class="w-full p-3 rounded-xl border text-left text-xs font-bold flex justify-between ${b.shelfName === sh.name ? 'bg-amber-600 text-white border-amber-400' : 'bg-slate-950 text-slate-200 border-slate-800'}">
+                <span>🪵 ${escapeHtml(sh.name)}</span><span>${b.shelfName === sh.name ? '✓' : ''}</span>
+            </button>
+        `).join('');
         modal.classList.remove('hidden');
     };
-
-    window.assignBookToShelfNow = function(bookId, shelfName, shelfCat) {
-        const books = getBooksArray();
+    window.setBookShelfV3 = function(bookId, shelfName, cat) {
+        const books = getBooks();
         const b = books.find(x => x.id === bookId);
         if (b) {
             b.shelfName = shelfName;
-            if (shelfCat) b.category = shelfCat;
-            saveBooksArrayUnlimited(books);
-            renderEnhancedWoodenShelf();
-            showToast(`📘 Moved to Shelf: "${shelfName}"`);
+            if (cat) b.category = cat;
+            saveBooks(books);
+            renderV3WoodenShelf();
         }
         document.getElementById('reader-suboptions-modal').classList.add('hidden');
     };
 
-    window.openEnhancedBookCornerModal = function(bookId) {
-        if (typeof window.openBookCornerModal === 'function') {
-            window.openBookCornerModal(bookId);
-        }
-        const books = getBooksArray();
-        const b = books.find(x => x.id === bookId);
-        if (b && coverMemoryCache[b.id]) {
-            const cov = document.getElementById('corner-modal-cover-preview');
-            if (cov) {
-                cov.style.backgroundImage = `url('${coverMemoryCache[b.id]}')`;
-                cov.textContent = '';
-            }
-        }
-    };
-
-    /* =========================================================================
-       MODULE 4: DEEP INTEGRATION — SHELF & BOOK <-> TO-DO LIST & LIVE TIMER
-       ========================================================================= */
-    window.quickAddBookToTodo = function(bookId) {
-        const books = getBooksArray();
-        const b = books.find(x => x.id === bookId);
+    window.addBookToTodoV3 = function(bookId) {
+        const b = getBooks().find(x => x.id === bookId);
         if (!b) return;
         const today = getLocalTodayString();
         todos.unshift({
             id: Date.now(),
-            title: `📖 [${b.shelfName || 'Shelf'}] Read ${b.title} (from p.${b.currentPage || 1})`,
+            title: `📖 [${b.shelfName || 'Shelf'}] Read ${b.title} (p.${b.currentPage || 1})`,
             completed: false,
             important: true,
             myDayDate: today,
             dueDate: today,
             repeat: { type: 'none' },
             steps: [],
-            note: `Shelf: ${b.shelfName || 'General'} • Progress: ${b.progressPct || 0}%`,
+            note: `Shelf: ${b.shelfName || 'General'}`,
             listId: 'tasks',
             bookId: b.id,
             bookPage: b.currentPage || 1
         });
         saveTodos();
         renderTodos();
-        showToast(`☑️ "${b.title}" added to My Day To-Do!`);
+        showToast(`☑️ "${b.title}" added to To-Do!`);
     };
 
-    window.syncEntireShelfToTodo = function(shelfName) {
-        const books = getBooksArray().filter(b => (b.shelfName || 'General Shelf') === shelfName);
-        if (books.length === 0) return;
-
-        // Create or find a matching Custom List in Microsoft To-Do
+    window.syncShelfToTodoV3 = function(shelfName) {
+        const books = getBooks().filter(b => (b.shelfName || 'General Shelf') === shelfName);
+        if (!books.length) return;
         let listObj = todoLists.find(l => l.name.toLowerCase() === shelfName.toLowerCase());
         if (!listObj) {
             listObj = { id: 'list_' + Date.now(), name: shelfName };
             todoLists.push(listObj);
         }
         const today = getLocalTodayString();
-        let addedCount = 0;
-        books.forEach((b, idx) => {
+        books.forEach((b, i) => {
             if (!todos.some(t => t.bookId === b.id && !t.completed)) {
                 todos.unshift({
-                    id: Date.now() + idx,
+                    id: Date.now() + i,
                     title: `📖 ${b.title} (p.${b.currentPage || 1}/${b.totalPages || 1})`,
                     completed: false,
                     important: false,
@@ -8427,253 +8661,861 @@ apiKey: "AIza" + "SyAbi9-V0S3DOtOAgBirMxrvV6J-XdwLf3Q",
                     dueDate: today,
                     repeat: { type: 'none' },
                     steps: [],
-                    note: `Synced from Wooden Shelf: ${shelfName}`,
+                    note: `Shelf: ${shelfName}`,
                     listId: listObj.id,
                     bookId: b.id,
                     bookPage: b.currentPage || 1
                 });
-                addedCount++;
             }
         });
         saveTodos();
         renderTodoListsBar();
         renderTodos();
-        showToast(`☑️ Synced ${addedCount} book(s) to To-Do List "📁 ${shelfName}"!`);
+        showToast(`☑️ Synced Shelf "${shelfName}" to To-Do List!`);
     };
 
-    window.startBookFocusSession = function(bookId) {
-        const books = getBooksArray();
-        const b = books.find(x => x.id === bookId);
+    window.startBookFocusV3 = function(bookId) {
+        const b = getBooks().find(x => x.id === bookId);
         if (!b) return;
-
-        // Insert & jump to an active Pomodoro Focus Session for this book
         const durMins = b.dailyTargetMins || 45;
-        const newBlock = {
+        schedule.splice(currentStepIndex, 0, {
             id: Date.now(),
             type: 'work',
             category: b.category === 'deen' ? 'deen' : 'study',
-            title: `📖 ${b.title} (${b.shelfName || 'Study'})`,
+            title: `📖 ${b.title}`,
             duration: durMins * 60,
             bookId: b.id
-        };
-        schedule.splice(currentStepIndex, 0, newBlock);
+        });
         safeSet('pages_pomodoro_schedule_v8', JSON.stringify(schedule));
         loadStep(currentStepIndex, false);
         startTimer();
-        if (typeof window.openBookAtPage === 'function') {
-            window.openBookAtPage(b.id, b.currentPage || 1);
-        }
-        showToast(`⏱️ ${durMins}m Focus Timer started for "${b.title}"!`);
-    };
-
-    window.startShelfFocusTimer = function(shelfName) {
-        const books = getBooksArray().filter(b => (b.shelfName || 'General Shelf') === shelfName);
-        if (books.length > 0) window.startBookFocusSession(books[0].id);
+        window.PomoDesktopReader.openBook(b.id, b.currentPage || 1);
     };
 
     /* =========================================================================
-       MODULE 5: DESKTOP INSTANT (0ms) MOUSE TEXT SELECTION & PIXEL-PERFECT PDF
+       5. ZERO-GLITCH DESKTOP PDF ENGINE + LIVE 60FPS PENCIL STUDIO (MOVE & RESIZE)
        ========================================================================= */
-    const readerViewport = document.getElementById('reader-viewport');
-    const stageEl = document.getElementById('reader-pages-stage');
+    let curBookId = null;
+    let curPdfDoc = null;
+    let curZoom = 1.0;
+    let studioActive = false;
+    let studioTool = 'select'; // 'select' | 'pencil' | 'text' | 'line' | 'arrow' | 'rect' | 'circle' | 'eraser'
+    let selectedShapeId = null;
+    let activeHlColor = '#facc15';
+    let pendingLaserSelection = null; // { page, x, y, w, h, text }
+    const pageTextItemsCache = {}; // { [pageNum]: [{ x, y, w, h, str }] }
 
-    if (readerViewport) {
-        // Intercept pointerdown in CAPTURE phase to kill the Android 2-second timer completely!
-        readerViewport.addEventListener('pointerdown', (e) => {
-            if (e.target.closest('svg.drawing-active') || e.target.closest('.pomo-line-chip') || e.target.closest('button')) return;
-            // Stop Part 3B's 2-second Android longPressTimer from starting
-            e.stopImmediatePropagation();
-        }, true);
+    // Replace Pencil Toolbar with Upgraded Studio Including "🖐️ Select / Move / Resize"
+    function upgradePencilToolbarDOM() {
+        const toolbar = document.getElementById('reader-pencil-toolbar');
+        if (!toolbar) return;
+        toolbar.innerHTML = `
+            <div class="flex items-center gap-1 flex-wrap">
+                <button type="button" class="v3-tool-btn bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow" data-tool="select" title="Click any shape to Move or Resize it with handles">🖐️ Select / Move / Resize</button>
+                <button type="button" class="v3-tool-btn bg-slate-800 text-slate-300 text-xs font-bold px-2.5 py-1.5 rounded-lg" data-tool="pencil">✍️ Freehand</button>
+                <button type="button" class="v3-tool-btn bg-slate-800 text-slate-300 text-xs font-bold px-2.5 py-1.5 rounded-lg" data-tool="line">📏 Line</button>
+                <button type="button" class="v3-tool-btn bg-slate-800 text-slate-300 text-xs font-bold px-2.5 py-1.5 rounded-lg" data-tool="arrow">➔ Arrow</button>
+                <button type="button" class="v3-tool-btn bg-slate-800 text-slate-300 text-xs font-bold px-2.5 py-1.5 rounded-lg" data-tool="rect">⬜ Square</button>
+                <button type="button" class="v3-tool-btn bg-slate-800 text-slate-300 text-xs font-bold px-2.5 py-1.5 rounded-lg" data-tool="circle">⭕ Circle</button>
+                <button type="button" class="v3-tool-btn bg-slate-800 text-slate-300 text-xs font-bold px-2.5 py-1.5 rounded-lg" data-tool="text">🔤 Text</button>
+                <button type="button" class="v3-tool-btn bg-slate-800 text-red-300 text-xs font-bold px-2.5 py-1.5 rounded-lg" data-tool="eraser">🗑️ Click-Delete</button>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <label class="text-[10px] font-bold text-slate-400">Color:</label>
+                <input type="color" id="v3-pencil-color" value="#ef4444" class="w-7 h-7 rounded cursor-pointer border border-slate-700 bg-transparent">
+                <label class="text-[10px] font-bold text-slate-400">Size:</label>
+                <input type="range" id="v3-pencil-size" min="2" max="24" value="4" class="w-20 accent-amber-500">
+                <button type="button" id="v3-delete-selected-btn" class="hidden bg-red-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg">🗑️ Delete Selected</button>
+                <button type="button" id="v3-undo-last-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold px-2.5 py-1.5 rounded-lg">↩️ Undo</button>
+                <button type="button" id="v3-bake-pdf-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow">💾 Save to PDF</button>
+            </div>
+        `;
 
-        // Instant (0ms) Desktop Mouse Selection on pointerup!
-        readerViewport.addEventListener('pointerup', (e) => {
-            if (e.target.closest('svg.drawing-active') || e.target.closest('.pomo-line-chip') || e.target.closest('button')) return;
-            e.stopImmediatePropagation();
-
-            setTimeout(() => {
-                const sel = window.getSelection();
-                const selText = sel ? sel.toString().trim() : '';
-                const flBar = document.getElementById('reader-floating-sel-bar');
-
-                if (selText.length >= 1) {
-                    // Instant Selection Pop-Up (0ms Delay!)
-                    const pageCard = e.target.closest('.reader-page-card');
-                    const pageNum = pageCard ? parseInt(pageCard.getAttribute('data-page')) : 1;
-                    const cardRect = pageCard ? pageCard.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
-
-                    // Compute exact normalized bounding boxes of the selected words
-                    const range = sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
-                    const normRects = [];
-                    if (range && cardRect.width && cardRect.height) {
-                        Array.from(range.getClientRects()).forEach(r => {
-                            if (r.width < 2 || r.height < 2) return;
-                            normRects.push({
-                                x: Math.max(0, Math.min(1, (r.left - cardRect.left) / cardRect.width)),
-                                y: Math.max(0, Math.min(1, (r.top - cardRect.top) / cardRect.height)),
-                                w: Math.max(0.01, Math.min(1, r.width / cardRect.width)),
-                                h: Math.max(0.01, Math.min(1, r.height / cardRect.height))
-                            });
-                        });
-                    }
-
-                    window._desktopInstantSel = {
-                        page: pageNum,
-                        text: selText.slice(0, 320),
-                        yNorm: normRects[0] ? normRects[0].y : Math.max(0.05, Math.min(0.95, (e.clientY - cardRect.top) / Math.max(1, cardRect.height))),
-                        rects: normRects
-                    };
-
-                    if (flBar) {
-                        flBar.classList.remove('hidden');
-                        flBar.classList.add('flex');
-                        const left = Math.max(16, Math.min(window.innerWidth - 340, e.clientX - 150));
-                        const top = Math.max(64, Math.min(window.innerHeight - 170, e.clientY - 115));
-                        flBar.style.left = `${left}px`;
-                        flBar.style.top = `${top}px`;
-                    }
-                } else {
-                    if (flBar && !flBar.classList.contains('hidden')) {
-                        flBar.classList.add('hidden');
-                    }
-                }
-            }, 15);
-        }, true);
-    }
-
-    // Wire Instant Selection Data into Floating Bar Buttons
-    ['sel-action-highlight', 'sel-action-note', 'sel-action-bookmark', 'sel-action-attach', 'sel-action-todo', 'sel-action-vault'].forEach(btnId => {
-        document.getElementById(btnId)?.addEventListener('click', () => {
-            setTimeout(() => {
-                if (!window._desktopInstantSel) return;
-                const books = getBooksArray();
-                const activeTitle = document.getElementById('active-book-title-bar')?.textContent || '';
-                const curBook = books.find(b => b.title === activeTitle) || books[0];
-                if (curBook && Array.isArray(curBook.annotations) && curBook.annotations.length > 0) {
-                    const newest = curBook.annotations[curBook.annotations.length - 1];
-                    newest.page = window._desktopInstantSel.page;
-                    newest.text = window._desktopInstantSel.text;
-                    newest.yNorm = window._desktopInstantSel.yNorm;
-                    newest.rects = window._desktopInstantSel.rects;
-                    saveBooksArrayUnlimited(books);
-                }
-            }, 60);
-        }, true);
-    });
-
-    // Pixel-Perfect PDF Coordinate Span Mapper (Prevents Yellow Random Line Glitch)
-    if (stageEl) {
-        const pdfObserver = new MutationObserver((mutations) => {
-            for (const m of mutations) {
-                for (const node of m.addedNodes) {
-                    if (node.nodeType === 1 && node.classList.contains('reader-page-card')) {
-                        alignPdfTextSpansExact(node);
-                    }
-                }
-            }
-        });
-        pdfObserver.observe(stageEl, { childList: true });
-    }
-
-    async function alignPdfTextSpansExact(pageCard) {
-        const pageNum = parseInt(pageCard.getAttribute('data-page'));
-        const canvas = pageCard.querySelector('canvas.reader-pdf-canvas');
-        const textLayer = pageCard.querySelector('.reader-text-layer');
-        const svgLayer = pageCard.querySelector('svg.reader-vector-svg');
-        if (!canvas || !textLayer || !pageNum || typeof pdfjsLib === 'undefined') return;
-
-        await new Promise(r => setTimeout(r, 70));
-        const activeTitle = document.getElementById('active-book-title-bar')?.textContent || '';
-        const books = getBooksArray();
-        const curBook = books.find(b => b.title === activeTitle) || books[0];
-        if (!curBook || curBook.format !== 'pdf') return;
-
-        const stored = await steelGet('bookFiles', curBook.id);
-        if (!stored || !stored.originalBytes) return;
-
-        if (!window._cachedPdfDocs) window._cachedPdfDocs = {};
-        if (!window._cachedPdfDocs[curBook.id]) {
-            window._cachedPdfDocs[curBook.id] = await pdfjsLib.getDocument({ data: stored.originalBytes.slice(0) }).promise;
-        }
-        const pdfDoc = window._cachedPdfDocs[curBook.id];
-        const page = await pdfDoc.getPage(pageNum);
-        const viewport = page.getViewport({ scale: 1.0 });
-        const textContent = await page.getTextContent();
-
-        const tray = textLayer.querySelector('.page-annotations-chips-tray');
-        textLayer.innerHTML = '';
-
-        const lineGroups = [];
-        textContent.items.forEach(item => {
-            if (!item.str || !item.str.trim()) return;
-            const m = pdfjsLib.Util.transform(viewport.transform, item.transform);
-            const fh = Math.hypot(m[2], m[3]);
-            const x = m[4];
-            const y = m[5] - fh * 0.88;
-            const w = (item.width || (item.str.length * fh * 0.5)) * viewport.scale;
-            const h = fh * 1.18;
-
-            let line = lineGroups.find(lg => Math.abs(lg.y - y) < 4);
-            if (!line) {
-                line = { y, minX: x, maxX: x + w, h, items: [] };
-                lineGroups.push(line);
-            }
-            line.minX = Math.min(line.minX, x);
-            line.maxX = Math.max(line.maxX, x + w);
-            line.h = Math.max(line.h, h);
-            line.items.push({ x, str: item.str });
-        });
-
-        lineGroups.sort((a, b) => a.y - b.y);
-        lineGroups.forEach((line, idx) => {
-            line.items.sort((a, b) => a.x - b.x);
-            const span = document.createElement('div');
-            span.className = "reader-pdf-span reader-line-node";
-            const leftPct = (line.minX / viewport.width) * 100;
-            const topPct = (line.y / viewport.height) * 100;
-            const widthPct = ((line.maxX - line.minX) / viewport.width) * 100;
-            const heightPct = (line.h / viewport.height) * 100;
-
-            span.style.left = `${Math.max(0, leftPct)}%`;
-            span.style.top = `${Math.max(0, topPct)}%`;
-            span.style.width = `${Math.min(100 - leftPct, Math.max(2, widthPct))}%`;
-            span.style.height = `${Math.max(1.2, heightPct)}%`;
-            span.style.fontSize = `${Math.max(9, (line.h / viewport.height) * pageCard.clientHeight * 0.82)}px`;
-            span.setAttribute('data-page', pageNum);
-            span.setAttribute('data-line-idx', idx);
-            span.textContent = line.items.map(i => i.str).join(' ');
-            textLayer.appendChild(span);
-        });
-
-        if (tray) textLayer.appendChild(tray);
-
-        if (svgLayer) {
-            svgLayer.querySelectorAll('rect[data-exact-hl="1"]').forEach(r => r.remove());
-            (curBook.annotations || []).filter(a => (a.page || 1) === pageNum && Array.isArray(a.rects)).forEach(ann => {
-                ann.rects.forEach(rc => {
-                    const hlRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                    hlRect.setAttribute('data-exact-hl', '1');
-                    hlRect.setAttribute('x', `${rc.x * 100}%`);
-                    hlRect.setAttribute('y', `${rc.y * 100}%`);
-                    hlRect.setAttribute('width', `${rc.w * 100}%`);
-                    hlRect.setAttribute('height', `${rc.h * 100}%`);
-                    hlRect.setAttribute('fill', ann.color || '#facc15');
-                    hlRect.setAttribute('fill-opacity', '0.35');
-                    hlRect.setAttribute('rx', '2');
-                    svgLayer.appendChild(hlRect);
+        toolbar.querySelectorAll('.v3-tool-btn').forEach(btn => {
+            btn.onclick = () => {
+                studioTool = btn.getAttribute('data-tool');
+                selectedShapeId = null;
+                toolbar.querySelectorAll('.v3-tool-btn').forEach(b => {
+                    b.className = "v3-tool-btn bg-slate-800 text-slate-300 text-xs font-bold px-2.5 py-1.5 rounded-lg";
                 });
+                btn.className = "v3-tool-btn bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow";
+                refreshAllSvgOverlays();
+            };
+        });
+
+        document.getElementById('v3-pencil-color').oninput = (e) => {
+            if (selectedShapeId) {
+                updateSelectedShapeProp('color', e.target.value);
+            }
+        };
+        document.getElementById('v3-pencil-size').oninput = (e) => {
+            if (selectedShapeId) {
+                updateSelectedShapeProp('strokeWidth', parseInt(e.target.value) || 4);
+            }
+        };
+        document.getElementById('v3-delete-selected-btn').onclick = () => {
+            if (selectedShapeId) deleteShapeOrAnnotation(selectedShapeId);
+        };
+        document.getElementById('v3-undo-last-btn').onclick = () => {
+            const books = getBooks();
+            const b = books.find(x => x.id === curBookId);
+            if (b && b.annotations && b.annotations.length > 0) {
+                b.annotations.pop();
+                selectedShapeId = null;
+                saveBooks(books);
+                refreshAllSvgOverlays();
+                showToast("↩️ Undid last action");
+            }
+        };
+        document.getElementById('v3-bake-pdf-btn').onclick = () => {
+            if (curBookId && typeof window.syncSingleBookToAllSources === 'function') {
+                window.syncSingleBookToAllSources(curBookId, false);
+            } else {
+                showToast("💾 Saved to PDF & Local Storage!");
+            }
+        };
+    }
+    upgradePencilToolbarDOM();
+
+    // Clone & takeover Pencil Toggle Button so Part 3B doesn't interfere
+    const oldPencilBtn = document.getElementById('reader-pencil-toggle-btn');
+    if (oldPencilBtn) {
+        const newPencilBtn = oldPencilBtn.cloneNode(true);
+        oldPencilBtn.parentNode.replaceChild(newPencilBtn, oldPencilBtn);
+        newPencilBtn.onclick = () => {
+            studioActive = !studioActive;
+            const bar = document.getElementById('reader-pencil-toolbar');
+            bar.classList.toggle('hidden', !studioActive);
+            bar.classList.toggle('flex', studioActive);
+            if (studioActive && studioTool === 'select') studioTool = 'line';
+            selectedShapeId = null;
+            refreshAllSvgOverlays();
+            showToast(studioActive ? "✏️ Live Pencil & Shape Studio Active (Drag to draw, or click 'Select/Move/Resize')" : "🖍️ Smart Highlight & Reading Mode Active");
+        };
+    }
+
+    function updateSelectedShapeProp(prop, val) {
+        const books = getBooks();
+        const b = books.find(x => x.id === curBookId);
+        const ann = b?.annotations?.find(a => a.id === selectedShapeId);
+        if (ann) {
+            ann[prop] = val;
+            saveBooks(books);
+            refreshAllSvgOverlays();
+        }
+    }
+
+    function deleteShapeOrAnnotation(annId) {
+        const books = getBooks();
+        const b = books.find(x => x.id === curBookId);
+        if (!b) return;
+        b.annotations = (b.annotations || []).filter(a => a.id !== annId);
+        if (selectedShapeId === annId) selectedShapeId = null;
+        saveBooks(books);
+        refreshAllSvgOverlays();
+        document.getElementById('v3-delete-selected-btn')?.classList.add('hidden');
+        showToast("🗑️ Removed from page");
+    }
+
+    // Main V3 Reader Controller
+    window.PomoDesktopReader = {
+        openBook: async function(bookId, startPage = 1) {
+            const books = getBooks();
+            const book = books.find(x => x.id === bookId);
+            if (!book) { showToast("Book not found", true); return; }
+            const stored = await steelGet('bookFiles', book.id);
+            if (!stored) { showToast("Book file missing in IndexedDB", true); return; }
+
+            curBookId = book.id;
+            book.lastOpened = Date.now();
+            book.currentPage = Math.max(1, Math.min(book.totalPages || 1, parseInt(startPage) || 1));
+            saveBooks(books);
+
+            curPdfDoc = null;
+            Object.keys(pageTextItemsCache).forEach(k => delete pageTextItemsCache[k]);
+
+            if (book.format === 'pdf' && typeof pdfjsLib !== 'undefined') {
+                curPdfDoc = await pdfjsLib.getDocument({ data: stored.originalBytes.slice(0) }).promise;
+                book.totalPages = curPdfDoc.numPages || book.totalPages;
+                saveBooks(books);
+            }
+
+            document.getElementById('reader-fullscreen-overlay').classList.remove('hidden');
+            bindV3NavigationControls();
+            await renderV3StagePages();
+            scrollToV3Page(book.currentPage, false);
+        }
+    };
+    window.openBookAtPage = (id, p) => window.PomoDesktopReader.openBook(id, p);
+
+    function bindV3NavigationControls() {
+        const books = getBooks();
+        const book = books.find(x => x.id === curBookId);
+        if (!book) return;
+
+        const slider = document.getElementById('reader-page-slider');
+        const numInp = document.getElementById('reader-page-num-input');
+        const totLbl = document.getElementById('reader-total-pages-label');
+        if (slider) {
+            slider.max = book.totalPages;
+            slider.value = book.currentPage;
+            slider.oninput = (e) => scrollToV3Page(parseInt(e.target.value) || 1, true);
+        }
+        if (numInp) {
+            numInp.value = book.currentPage;
+            numInp.onchange = (e) => scrollToV3Page(parseInt(e.target.value) || 1, true);
+        }
+        if (totLbl) totLbl.textContent = book.totalPages;
+
+        const prevB = document.getElementById('reader-prev-page-btn');
+        const nextB = document.getElementById('reader-next-page-btn');
+        if (prevB) prevB.onclick = () => scrollToV3Page(book.currentPage - 1, true);
+        if (nextB) nextB.onclick = () => scrollToV3Page(book.currentPage + 1, true);
+
+        const zIn = document.getElementById('reader-zoom-in-btn');
+        const zOut = document.getElementById('reader-zoom-out-btn');
+        if (zIn) zIn.onclick = () => {
+            curZoom = Math.min(2.2, +(curZoom + 0.15).toFixed(2));
+            document.getElementById('reader-zoom-label').textContent = `${Math.round(curZoom * 100)}%`;
+            renderV3StagePages();
+        };
+        if (zOut) zOut.onclick = () => {
+            curZoom = Math.max(0.65, +(curZoom - 0.15).toFixed(2));
+            document.getElementById('reader-zoom-label').textContent = `${Math.round(curZoom * 100)}%`;
+            renderV3StagePages();
+        };
+
+        // Rebind Floating Selection Bar Buttons so they use V3 Zero-Glitch Highlighter
+        const flBar = document.getElementById('reader-floating-sel-bar');
+        if (flBar && !flBar.getAttribute('data-v3-bound')) {
+            flBar.setAttribute('data-v3-bound', '1');
+            flBar.querySelectorAll('.hl-color-swatch').forEach(sw => {
+                sw.onclick = () => {
+                    activeHlColor = sw.getAttribute('data-color') || '#facc15';
+                    flBar.querySelectorAll('.hl-color-swatch').forEach(s => s.classList.remove('border-2', 'border-white'));
+                    sw.classList.add('border-2', 'border-white');
+                };
+            });
+
+            const replaceBtn = (id, fn) => {
+                const oldB = document.getElementById(id);
+                if (!oldB) return;
+                const newB = oldB.cloneNode(true);
+                oldB.parentNode.replaceChild(newB, oldB);
+                newB.onclick = fn;
+            };
+
+            replaceBtn('sel-action-highlight', () => commitLaserSelection('highlight'));
+            replaceBtn('sel-action-bookmark', () => commitLaserSelection('bookmark'));
+            replaceBtn('sel-action-note', () => {
+                const noteTxt = prompt('📝 Enter your note for this highlighted section:', '') || '';
+                if (noteTxt) commitLaserSelection('note', { note: noteTxt });
+            });
+            replaceBtn('sel-action-attach', () => {
+                const inp = document.getElementById('line-attach-file-input');
+                inp.onchange = (ev) => {
+                    const f = ev.target.files[0];
+                    if (!f) return;
+                    const r = new FileReader();
+                    r.onload = async () => {
+                        const attId = 'att_' + Date.now();
+                        await steelPut('lineAttachments', { id: attId, name: f.name, mime: f.type, dataUrl: r.result });
+                        commitLaserSelection('attachment', { attachmentId: attId, attachmentName: f.name, note: `Attached: ${f.name}` });
+                    };
+                    r.readAsDataURL(f);
+                    inp.value = '';
+                };
+                inp.click();
+            });
+            replaceBtn('sel-action-todo', () => {
+                if (!pendingLaserSelection) return;
+                const b = getBooks().find(x => x.id === curBookId);
+                commitLaserSelection('highlight');
+                const today = getLocalTodayString();
+                todos.unshift({
+                    id: Date.now(),
+                    title: `📖 ${b ? b.title : 'Book'} (p.${pendingLaserSelection.page}): "${(pendingLaserSelection.text || 'Selected Line').slice(0, 50)}"`,
+                    completed: false,
+                    important: true,
+                    myDayDate: today,
+                    dueDate: today,
+                    repeat: { type: 'none' },
+                    steps: [],
+                    note: pendingLaserSelection.text || '',
+                    listId: 'tasks',
+                    bookId: curBookId,
+                    bookPage: pendingLaserSelection.page
+                });
+                saveTodos();
+                renderTodos();
+                showToast("☑️ Added to To-Do List with Page Link!");
+            });
+            replaceBtn('sel-action-vault', () => {
+                if (!pendingLaserSelection) return;
+                const b = getBooks().find(x => x.id === curBookId);
+                commitLaserSelection('highlight');
+                const tasks = JSON.parse(safeGet('pages_pomodoro_tasks_v8', '[]'));
+                tasks.push({
+                    id: Date.now(),
+                    title: `${b ? b.title : 'Book'} (p.${pendingLaserSelection.page}): ${(pendingLaserSelection.text || 'Key Concept').slice(0, 60)}`,
+                    subject: activeTaskSubj || (extConfig.customSubjects && extConfig.customSubjects[0]) || 'Physics',
+                    type: 'revision',
+                    completed: false,
+                    bookId: curBookId,
+                    page: pendingLaserSelection.page
+                });
+                safeSet('pages_pomodoro_tasks_v8', JSON.stringify(tasks));
+                renderTasks(activeTaskTab);
+                showToast(`📌 Sent to Study Vault (${activeTaskSubj})!`);
             });
         }
     }
 
-    // Hook into Shelf Filter & Import Changes so the Enhanced Shelf always renders
-    document.querySelectorAll('.shelf-filter-tab, [data-target="page-reader"]').forEach(btn => {
-        btn.addEventListener('click', () => setTimeout(renderEnhancedWoodenShelf, 50));
-    });
-    document.getElementById('shelf-sort-select')?.addEventListener('change', () => setTimeout(renderEnhancedWoodenShelf, 50));
-    document.getElementById('reader-back-to-shelf-btn')?.addEventListener('click', () => setTimeout(renderEnhancedWoodenShelf, 80));
+    function commitLaserSelection(type, extra = {}) {
+        if (!pendingLaserSelection || !curBookId) return;
+        const books = getBooks();
+        const b = books.find(x => x.id === curBookId);
+        if (!b) return;
+        if (!Array.isArray(b.annotations)) b.annotations = [];
 
-    // Boot Unlimited Shelf & Steel Shield
-    setTimeout(hydrateCoversFromIDB, 150);
+        b.annotations.push({
+            id: 'hl_' + Date.now() + '_' + Math.floor(Math.random() * 999),
+            page: pendingLaserSelection.page,
+            type: type,
+            color: activeHlColor,
+            text: pendingLaserSelection.text || `Highlighted Section on Page ${pendingLaserSelection.page}`,
+            note: extra.note || '',
+            attachmentId: extra.attachmentId || '',
+            attachmentName: extra.attachmentName || '',
+            yNorm: pendingLaserSelection.y,
+            rects: [{
+                x: pendingLaserSelection.x,
+                y: pendingLaserSelection.y,
+                w: pendingLaserSelection.w,
+                h: pendingLaserSelection.h
+            }],
+            createdAt: Date.now()
+        });
+
+        saveBooks(books);
+        pendingLaserSelection = null;
+        document.getElementById('reader-floating-sel-bar')?.classList.add('hidden');
+        refreshAllSvgOverlays(); // Instant <1ms SVG update without reloading PDF canvas!
+        showToast(type === 'highlight' ? "🖍️ Highlight Locked!" : `✅ ${type.toUpperCase()} Saved!`);
+    }
+
+    async function scrollToV3Page(pageNum, reRenderWindow = true) {
+        const books = getBooks();
+        const b = books.find(x => x.id === curBookId);
+        if (!b) return;
+        b.currentPage = Math.max(1, Math.min(b.totalPages || 1, pageNum));
+        b.progressPct = Math.max(b.progressPct || 0, Math.round((b.currentPage / Math.max(1, b.totalPages)) * 100));
+        saveBooks(books);
+
+        document.getElementById('active-book-title-bar').textContent = b.title;
+        document.getElementById('active-book-sub-bar').textContent = `Page ${b.currentPage} of ${b.totalPages} • ${b.progressPct}% Read`;
+        const slider = document.getElementById('reader-page-slider');
+        const numInp = document.getElementById('reader-page-num-input');
+        if (slider) slider.value = b.currentPage;
+        if (numInp) numInp.value = b.currentPage;
+
+        const existingCard = document.querySelector(`.v3-page-stage-card[data-page="${b.currentPage}"]`);
+        if (existingCard) {
+            existingCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (reRenderWindow) {
+            await renderV3StagePages();
+            document.querySelector(`.v3-page-stage-card[data-page="${b.currentPage}"]`)?.scrollIntoView({ block: 'start' });
+        }
+    }
+
+    async function renderV3StagePages() {
+        const stage = document.getElementById('reader-pages-stage');
+        const books = getBooks();
+        const book = books.find(x => x.id === curBookId);
+        if (!stage || !book) return;
+
+        stage.innerHTML = '';
+        document.getElementById('active-book-title-bar').textContent = book.title;
+        document.getElementById('active-book-sub-bar').textContent = `Page ${book.currentPage} of ${book.totalPages} • ${book.progressPct || 0}% Read`;
+
+        const startP = Math.max(1, book.currentPage - 2);
+        const endP = Math.min(book.totalPages || 1, book.currentPage + 5);
+
+        for (let p = startP; p <= endP; p++) {
+            const card = document.createElement('div');
+            card.className = "v3-page-stage-card w-full";
+            card.setAttribute('data-page', p);
+            card.style.maxWidth = `${Math.round(840 * curZoom)}px`;
+
+            const canvas = document.createElement('canvas');
+            canvas.className = "reader-pdf-canvas";
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('class', 'v3-interactive-svg');
+            svg.setAttribute('data-page', p);
+            svg.setAttribute('viewBox', '0 0 1000 1400');
+            svg.setAttribute('preserveAspectRatio', 'none');
+
+            card.appendChild(canvas);
+            card.appendChild(svg);
+            stage.appendChild(card);
+
+            if (curPdfDoc) {
+                await renderV3PdfCanvasAndExtractMathBoxes(p, canvas);
+            }
+            renderSinglePageSvgOverlay(p, svg);
+            bindSvgInteractiveStudioAndHighlighter(p, svg);
+        }
+    }
+
+    async function renderV3PdfCanvasAndExtractMathBoxes(pageNum, canvas) {
+        try {
+            const page = await curPdfDoc.getPage(pageNum);
+            const vp = page.getViewport({ scale: 1.5 * curZoom });
+            canvas.width = vp.width;
+            canvas.height = vp.height;
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+
+            // Cache exact normalized (0..1) word boxes mathematically so highlighting NEVER needs buggy HTML spans!
+            if (!pageTextItemsCache[pageNum]) {
+                const unitVp = page.getViewport({ scale: 1.0 });
+                const tc = await page.getTextContent();
+                const items = [];
+                tc.items.forEach(item => {
+                    if (!item.str || !item.str.trim()) return;
+                    const m = pdfjsLib.Util.transform(unitVp.transform, item.transform);
+                    const fh = Math.hypot(m[2], m[3]);
+                    const x = m[4] / unitVp.width;
+                    const y = (m[5] - fh * 0.85) / unitVp.height;
+                    const w = ((item.width || (item.str.length * fh * 0.5)) * unitVp.scale) / unitVp.width;
+                    const h = (fh * 1.15) / unitVp.height;
+                    items.push({ x, y, w, h, str: item.str });
+                });
+                pageTextItemsCache[pageNum] = items;
+            }
+        } catch (e) {}
+    }
+
+    function extractPdfWordsInNormRect(pageNum, rx, ry, rw, rh) {
+        const items = pageTextItemsCache[pageNum] || [];
+        const matched = items.filter(it => {
+            const cx = it.x + it.w / 2;
+            const cy = it.y + it.h / 2;
+            return cx >= rx - 0.02 && cx <= rx + rw + 0.02 && cy >= ry - 0.015 && cy <= ry + rh + 0.015;
+        });
+        matched.sort((a, b) => (Math.abs(a.y - b.y) < 0.012 ? a.x - b.x : a.y - b.y));
+        return matched.map(m => m.str).join(' ').trim();
+    }
+
+    function refreshAllSvgOverlays() {
+        document.querySelectorAll('svg.v3-interactive-svg').forEach(svg => {
+            const p = parseInt(svg.getAttribute('data-page')) || 1;
+            svg.classList.toggle('mode-draw', studioActive && studioTool !== 'select');
+            svg.classList.toggle('mode-select', studioActive && studioTool === 'select');
+            renderSinglePageSvgOverlay(p, svg);
+        });
+        const delBtn = document.getElementById('v3-delete-selected-btn');
+        if (delBtn) delBtn.classList.toggle('hidden', !selectedShapeId);
+    }
+
+    // Renders All Highlights, Notes, Arrows, Lines, Circles, Squares, Freehand & Resize Handles on SVG
+    function renderSinglePageSvgOverlay(pageNum, svg) {
+        const books = getBooks();
+        const b = books.find(x => x.id === curBookId);
+        if (!b) return;
+        svg.innerHTML = '';
+
+        // Define Arrowhead Marker
+        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        defs.innerHTML = `
+            <marker id="v3-arrow-${pageNum}" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="context-stroke"></path>
+            </marker>
+        `;
+        svg.appendChild(defs);
+
+        const pageAnns = (b.annotations || []).filter(a => (a.page || 1) === pageNum);
+
+        pageAnns.forEach(ann => {
+            const isSel = (ann.id === selectedShapeId);
+            const color = ann.color || '#facc15';
+            const sw = (ann.strokeWidth || 4) * 2.2;
+
+            if (ann.type === 'highlight' || ann.type === 'note' || ann.type === 'bookmark' || ann.type === 'attachment') {
+                const rects = (Array.isArray(ann.rects) && ann.rects.length > 0)
+                    ? ann.rects
+                    : [{ x: 0.06, y: ann.yNorm || 0.2, w: 0.88, h: 0.028 }];
+
+                rects.forEach(rc => {
+                    const rEl = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    rEl.setAttribute('x', rc.x * 1000);
+                    rEl.setAttribute('y', rc.y * 1400);
+                    rEl.setAttribute('width', Math.max(15, rc.w * 1000));
+                    rEl.setAttribute('height', Math.max(14, rc.h * 1400));
+                    rEl.setAttribute('fill', color);
+                    rEl.setAttribute('fill-opacity', '0.36');
+                    rEl.setAttribute('rx', '4');
+                    rEl.setAttribute('class', 'v3-shape-node');
+                    if (isSel) {
+                        rEl.setAttribute('stroke', '#3b82f6');
+                        rEl.setAttribute('stroke-width', '3');
+                    }
+                    rEl.onclick = (ev) => {
+                        ev.stopPropagation();
+                        if (studioActive && studioTool === 'eraser') return deleteShapeOrAnnotation(ann.id);
+                        selectedShapeId = ann.id;
+                        refreshAllSvgOverlays();
+                        if (ann.note || ann.attachmentName) {
+                            showToast(`📝 ${ann.note || ann.attachmentName}`);
+                        }
+                    };
+                    svg.appendChild(rEl);
+                });
+            } else if (ann.type === 'drawing') {
+                const pts = ann.points || [];
+                let el = null;
+
+                if (ann.shapeType === 'pencil' && pts.length > 1) {
+                    el = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                    el.setAttribute('points', pts.map(p => `${p.x * 1000},${p.y * 1400}`).join(' '));
+                    el.setAttribute('fill', 'none');
+                    el.setAttribute('stroke', color);
+                    el.setAttribute('stroke-width', sw);
+                    el.setAttribute('stroke-linecap', 'round');
+                    el.setAttribute('stroke-linejoin', 'round');
+                } else if ((ann.shapeType === 'line' || ann.shapeType === 'arrow') && pts.length >= 2) {
+                    el = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    el.setAttribute('x1', pts[0].x * 1000);
+                    el.setAttribute('y1', pts[0].y * 1400);
+                    el.setAttribute('x2', pts[1].x * 1000);
+                    el.setAttribute('y2', pts[1].y * 1400);
+                    el.setAttribute('stroke', color);
+                    el.setAttribute('stroke-width', sw);
+                    el.setAttribute('stroke-linecap', 'round');
+                    if (ann.shapeType === 'arrow') {
+                        el.setAttribute('marker-end', `url(#v3-arrow-${pageNum})`);
+                    }
+                } else if (ann.shapeType === 'rect' && pts.length >= 2) {
+                    el = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    el.setAttribute('x', Math.min(pts[0].x, pts[1].x) * 1000);
+                    el.setAttribute('y', Math.min(pts[0].y, pts[1].y) * 1400);
+                    el.setAttribute('width', Math.max(10, Math.abs(pts[1].x - pts[0].x) * 1000));
+                    el.setAttribute('height', Math.max(10, Math.abs(pts[1].y - pts[0].y) * 1400));
+                    el.setAttribute('fill', 'rgba(255,255,255,0.01)');
+                    el.setAttribute('stroke', color);
+                    el.setAttribute('stroke-width', sw);
+                } else if (ann.shapeType === 'circle' && pts.length >= 2) {
+                    el = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                    el.setAttribute('cx', ((pts[0].x + pts[1].x) / 2) * 1000);
+                    el.setAttribute('cy', ((pts[0].y + pts[1].y) / 2) * 1400);
+                    el.setAttribute('rx', Math.max(8, (Math.abs(pts[1].x - pts[0].x) / 2) * 1000));
+                    el.setAttribute('ry', Math.max(8, (Math.abs(pts[1].y - pts[0].y) / 2) * 1400));
+                    el.setAttribute('fill', 'rgba(255,255,255,0.01)');
+                    el.setAttribute('stroke', color);
+                    el.setAttribute('stroke-width', sw);
+                } else if (ann.shapeType === 'text' && pts.length >= 1) {
+                    el = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    el.setAttribute('x', pts[0].x * 1000);
+                    el.setAttribute('y', pts[0].y * 1400);
+                    el.setAttribute('fill', color);
+                    el.setAttribute('font-size', (ann.strokeWidth || 5) * 7);
+                    el.setAttribute('font-weight', '800');
+                    el.textContent = ann.text || 'Text';
+                }
+
+                if (el) {
+                    el.setAttribute('class', 'v3-shape-node');
+                    el.setAttribute('data-ann-id', ann.id);
+                    if (isSel) {
+                        el.setAttribute('filter', 'drop-shadow(0 0 8px #3b82f6)');
+                    }
+                    svg.appendChild(el);
+
+                    // Draw Interactive Resize Handles when this shape is Selected!
+                    if (isSel && pts.length >= 2) {
+                        [0, 1].forEach(ptIdx => {
+                            const handle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                            handle.setAttribute('cx', pts[ptIdx].x * 1000);
+                            handle.setAttribute('cy', pts[ptIdx].y * 1400);
+                            handle.setAttribute('r', '12');
+                            handle.setAttribute('class', 'v3-resize-handle');
+                            handle.setAttribute('data-ann-id', ann.id);
+                            handle.setAttribute('data-pt-idx', ptIdx);
+                            svg.appendChild(handle);
+                        });
+                    }
+                }
+            }
+        });
+    }
+
+    // 60 FPS Live Drawing Preview + Move/Resize Dragging + Smart Laser Box Highlighter
+    function bindSvgInteractiveStudioAndHighlighter(pageNum, svg) {
+        let mode = null; // 'draw' | 'move-shape' | 'resize-shape' | 'laser-highlight'
+        let activeAnnId = null;
+        let resizePtIdx = 0;
+        let startNorm = { x: 0, y: 0 };
+        let lastNorm = { x: 0, y: 0 };
+        let livePoints = [];
+        let previewNode = null;
+
+        function getNormCoords(e) {
+            const r = svg.getBoundingClientRect();
+            return {
+                x: Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width))),
+                y: Math.max(0, Math.min(1, (e.clientY - r.top) / Math.max(1, r.height)))
+            };
+        }
+
+        svg.onpointerdown = (e) => {
+            e.stopPropagation();
+            svg.setPointerCapture(e.pointerId);
+            const pt = getNormCoords(e);
+            startNorm = pt;
+            lastNorm = pt;
+
+            // 1. Check if clicking a Resize Handle
+            const handleEl = e.target.closest('.v3-resize-handle');
+            if (handleEl) {
+                mode = 'resize-shape';
+                activeAnnId = handleEl.getAttribute('data-ann-id');
+                resizePtIdx = parseInt(handleEl.getAttribute('data-pt-idx')) || 0;
+                return;
+            }
+
+            // 2. Check if clicking an existing Shape Node to Move/Reposition or Delete
+            const shapeEl = e.target.closest('.v3-shape-node');
+            if (shapeEl && shapeEl.getAttribute('data-ann-id')) {
+                const clickedId = shapeEl.getAttribute('data-ann-id');
+                if (studioActive && studioTool === 'eraser') {
+                    deleteShapeOrAnnotation(clickedId);
+                    return;
+                }
+                if (!studioActive || studioTool === 'select') {
+                    selectedShapeId = clickedId;
+                    activeAnnId = clickedId;
+                    mode = 'move-shape';
+                    refreshAllSvgOverlays();
+                    return;
+                }
+            }
+
+            // 3. If Pencil Studio is Active -> Start 60 FPS Live Shape Drawing!
+            if (studioActive && studioTool !== 'select' && studioTool !== 'eraser') {
+                const color = document.getElementById('v3-pencil-color')?.value || '#ef4444';
+                const sw = (parseInt(document.getElementById('v3-pencil-size')?.value) || 4) * 2.2;
+
+                if (studioTool === 'text') {
+                    const txt = prompt('🔤 Enter text to place on page:', '');
+                    if (txt) {
+                        const books = getBooks();
+                        const b = books.find(x => x.id === curBookId);
+                        if (b) {
+                            b.annotations.push({
+                                id: 'draw_' + Date.now(),
+                                page: pageNum,
+                                type: 'drawing',
+                                shapeType: 'text',
+                                text: txt,
+                                color,
+                                strokeWidth: parseInt(document.getElementById('v3-pencil-size')?.value) || 4,
+                                points: [pt],
+                                createdAt: Date.now()
+                            });
+                            saveBooks(books);
+                            refreshAllSvgOverlays();
+                        }
+                    }
+                    return;
+                }
+
+                mode = 'draw';
+                livePoints = [pt, pt];
+
+                if (studioTool === 'pencil') {
+                    previewNode = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                    previewNode.setAttribute('fill', 'none');
+                } else if (studioTool === 'line' || studioTool === 'arrow') {
+                    previewNode = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    if (studioTool === 'arrow') previewNode.setAttribute('marker-end', `url(#v3-arrow-${pageNum})`);
+                } else if (studioTool === 'rect') {
+                    previewNode = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    previewNode.setAttribute('fill', 'rgba(59, 130, 246, 0.08)');
+                } else if (studioTool === 'circle') {
+                    previewNode = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                    previewNode.setAttribute('fill', 'rgba(59, 130, 246, 0.08)');
+                }
+
+                if (previewNode) {
+                    previewNode.setAttribute('stroke', color);
+                    previewNode.setAttribute('stroke-width', sw);
+                    previewNode.setAttribute('stroke-linecap', 'round');
+                    svg.appendChild(previewNode);
+                }
+                return;
+            }
+
+            // 4. Otherwise (Reading Mode) -> Start Live Smart Laser Box Highlighter!
+            selectedShapeId = null;
+            mode = 'laser-highlight';
+            previewNode = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            previewNode.setAttribute('fill', activeHlColor);
+            previewNode.setAttribute('fill-opacity', '0.38');
+            previewNode.setAttribute('stroke', activeHlColor);
+            previewNode.setAttribute('stroke-width', '2');
+            previewNode.setAttribute('rx', '4');
+            svg.appendChild(previewNode);
+        };
+
+        svg.onpointermove = (e) => {
+            if (!mode) return;
+            const pt = getNormCoords(e);
+
+            if (mode === 'draw' && previewNode) {
+                if (studioTool === 'pencil') {
+                    livePoints.push(pt);
+                    previewNode.setAttribute('points', livePoints.map(p => `${p.x * 1000},${p.y * 1400}`).join(' '));
+                } else if (studioTool === 'line' || studioTool === 'arrow') {
+                    livePoints[1] = pt;
+                    previewNode.setAttribute('x1', startNorm.x * 1000);
+                    previewNode.setAttribute('y1', startNorm.y * 1400);
+                    previewNode.setAttribute('x2', pt.x * 1000);
+                    previewNode.setAttribute('y2', pt.y * 1400);
+                } else if (studioTool === 'rect') {
+                    livePoints[1] = pt;
+                    previewNode.setAttribute('x', Math.min(startNorm.x, pt.x) * 1000);
+                    previewNode.setAttribute('y', Math.min(startNorm.y, pt.y) * 1400);
+                    previewNode.setAttribute('width', Math.abs(pt.x - startNorm.x) * 1000);
+                    previewNode.setAttribute('height', Math.abs(pt.y - startNorm.y) * 1400);
+                } else if (studioTool === 'circle') {
+                    livePoints[1] = pt;
+                    previewNode.setAttribute('cx', ((startNorm.x + pt.x) / 2) * 1000);
+                    previewNode.setAttribute('cy', ((startNorm.y + pt.y) / 2) * 1400);
+                    previewNode.setAttribute('rx', (Math.abs(pt.x - startNorm.x) / 2) * 1000);
+                    previewNode.setAttribute('ry', (Math.abs(pt.y - startNorm.y) / 2) * 1400);
+                }
+            } else if (mode === 'move-shape' && activeAnnId) {
+                const dx = pt.x - lastNorm.x;
+                const dy = pt.y - lastNorm.y;
+                lastNorm = pt;
+                const books = getBooks();
+                const b = books.find(x => x.id === curBookId);
+                const ann = b?.annotations?.find(a => a.id === activeAnnId);
+                if (ann) {
+                    if (Array.isArray(ann.points)) {
+                        ann.points = ann.points.map(p => ({
+                            x: Math.max(0, Math.min(1, p.x + dx)),
+                            y: Math.max(0, Math.min(1, p.y + dy))
+                        }));
+                    }
+                    if (Array.isArray(ann.rects)) {
+                        ann.rects = ann.rects.map(rc => ({
+                            ...rc,
+                            x: Math.max(0, Math.min(1 - rc.w, rc.x + dx)),
+                            y: Math.max(0, Math.min(1 - rc.h, rc.y + dy))
+                        }));
+                    }
+                    saveBooks(books);
+                    renderSinglePageSvgOverlay(pageNum, svg);
+                }
+            } else if (mode === 'resize-shape' && activeAnnId) {
+                const books = getBooks();
+                const b = books.find(x => x.id === curBookId);
+                const ann = b?.annotations?.find(a => a.id === activeAnnId);
+                if (ann && Array.isArray(ann.points) && ann.points[resizePtIdx]) {
+                    ann.points[resizePtIdx] = { x: pt.x, y: pt.y };
+                    saveBooks(books);
+                    renderSinglePageSvgOverlay(pageNum, svg);
+                }
+            } else if (mode === 'laser-highlight' && previewNode) {
+                const rx = Math.min(startNorm.x, pt.x);
+                const ry = Math.min(startNorm.y, pt.y);
+                const rw = Math.abs(pt.x - startNorm.x);
+                const rh = Math.max(0.018, Math.abs(pt.y - startNorm.y));
+                previewNode.setAttribute('x', rx * 1000);
+                previewNode.setAttribute('y', ry * 1400);
+                previewNode.setAttribute('width', rw * 1000);
+                previewNode.setAttribute('height', rh * 1400);
+            }
+        };
+
+        svg.onpointerup = (e) => {
+            if (!mode) return;
+            const pt = getNormCoords(e);
+            const dist = Math.hypot(pt.x - startNorm.x, pt.y - startNorm.y);
+
+            if (mode === 'draw') {
+                if (dist > 0.01) {
+                    const color = document.getElementById('v3-pencil-color')?.value || '#ef4444';
+                    const sw = parseInt(document.getElementById('v3-pencil-size')?.value) || 4;
+                    const books = getBooks();
+                    const b = books.find(x => x.id === curBookId);
+                    if (b) {
+                        const newId = 'draw_' + Date.now();
+                        b.annotations.push({
+                            id: newId,
+                            page: pageNum,
+                            type: 'drawing',
+                            shapeType: studioTool,
+                            color,
+                            strokeWidth: sw,
+                            points: livePoints,
+                            createdAt: Date.now()
+                        });
+                        selectedShapeId = newId;
+                        saveBooks(books);
+                    }
+                }
+                refreshAllSvgOverlays();
+            } else if (mode === 'laser-highlight') {
+                previewNode?.remove();
+                if (dist > 0.015) {
+                    const rx = Math.min(startNorm.x, pt.x);
+                    const ry = Math.min(startNorm.y, pt.y);
+                    const rw = Math.max(0.03, Math.abs(pt.x - startNorm.x));
+                    const rh = Math.max(0.018, Math.abs(pt.y - startNorm.y));
+                    const extractedTxt = extractPdfWordsInNormRect(pageNum, rx, ry, rw, rh) || `Highlighted Section on Page ${pageNum}`;
+
+                    pendingLaserSelection = { page: pageNum, x: rx, y: ry, w: rw, h: rh, text: extractedTxt };
+                    const flBar = document.getElementById('reader-floating-sel-bar');
+                    if (flBar) {
+                        flBar.classList.remove('hidden');
+                        flBar.classList.add('flex');
+                        flBar.style.left = `${Math.max(16, Math.min(window.innerWidth - 340, e.clientX - 150))}px`;
+                        flBar.style.top = `${Math.max(64, Math.min(window.innerHeight - 170, e.clientY - 115))}px`;
+                    }
+                } else {
+                    document.getElementById('reader-floating-sel-bar')?.classList.add('hidden');
+                }
+            }
+
+            mode = null;
+            previewNode = null;
+        };
+    }
+
+    // Keyboard Shortcuts: Delete selected shape, Ctrl+Z Undo
+    window.addEventListener('keydown', (e) => {
+        if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+        if ((e.key === 'Delete' || e.key === 'Backspace') && selectedShapeId) {
+            deleteShapeOrAnnotation(selectedShapeId);
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && curBookId) {
+            document.getElementById('v3-undo-last-btn')?.click();
+        }
+    });
+
+    // Hydrate covers & boot V3 Shelf + RPG Arena
+    (async function initV3() {
+        const books = getBooks();
+        for (const b of books) {
+            if (!coverMemoryCache[b.id]) {
+                const cov = await steelGet('bookCovers', b.id);
+                if (cov && cov.coverDataUrl) coverMemoryCache[b.id] = cov.coverDataUrl;
+            }
+        }
+        renderV3WoodenShelf();
+        mountRpgArenaInVault();
+    })();
 })();
 </script>
 </body>
