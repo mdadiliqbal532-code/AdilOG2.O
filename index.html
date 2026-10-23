@@ -7753,6 +7753,144 @@
 })();
 </script>
 <!-- ================= END OF PART 3B — COMPLETE PRO READER & LIFE OS ================= -->
+    <!-- ================= SELF-HEALING FIX FOR + SUBJECT & READER MODALS ================= -->
+<script>
+(function() {
+    // 1. Ensure all Reader Modals exist in the DOM with guaranteed top-level z-index
+    function ensureReaderModalsExist() {
+        if (!document.getElementById('reader-suboptions-modal')) {
+            const modalHtml = `
+            <div id="reader-suboptions-modal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center p-4" style="z-index: 9999;">
+                <div class="bg-slate-900 border border-slate-700 rounded-3xl p-5 w-full max-w-lg shadow-2xl flex flex-col gap-3 max-h-[88dvh] native-scroll">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                        <h3 id="suboptions-modal-title" class="text-sm font-extrabold text-white uppercase tracking-wider">Options</h3>
+                        <button id="close-suboptions-modal-btn" class="text-slate-400 hover:text-white font-bold px-2">✕</button>
+                    </div>
+                    <div id="suboptions-modal-body" class="flex flex-col gap-3"></div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        } else {
+            document.getElementById('reader-suboptions-modal').style.zIndex = '9999';
+        }
+
+        const closeBtn = document.getElementById('close-suboptions-modal-btn');
+        if (closeBtn) {
+            closeBtn.onclick = () => document.getElementById('reader-suboptions-modal').classList.add('hidden');
+        }
+    }
+    ensureReaderModalsExist();
+
+    // 2. Bulletproof Custom Subject Modal & Button Re-binding
+    window.openCustomSubjectModal = function() {
+        ensureReaderModalsExist();
+        if (!Array.isArray(extConfig.customSubjects) || extConfig.customSubjects.length === 0) {
+            extConfig.customSubjects = ['Physics', 'Chemistry', 'Biology'];
+        }
+
+        const modalEl = document.getElementById('reader-suboptions-modal');
+        const titleEl = document.getElementById('suboptions-modal-title');
+        const bodyEl = document.getElementById('suboptions-modal-body');
+
+        titleEl.textContent = "📚 Manage Custom Vault Subjects (Life, Medical & Deen)";
+        bodyEl.innerHTML = `
+            <p class="text-xs text-slate-400">Add any subject for NEET, MBBS, career, or Deen. All subjects work in Backlog, Revision, Daily MCQ, and Matrix.</p>
+            <div class="flex gap-2">
+                <input type="text" id="new-vault-subj-input" placeholder="e.g. Anatomy / Tafseer / Hadith / Coding" class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+                <button type="button" id="confirm-add-vault-subj" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-xs shadow active:scale-95">＋ Add</button>
+            </div>
+            <div class="flex flex-col gap-1.5 max-h-60 native-scroll mt-2">
+                ${extConfig.customSubjects.map((s, idx) => `
+                    <div class="flex items-center justify-between bg-slate-950 px-3 py-2 rounded-xl border border-slate-800">
+                        <span class="text-xs font-bold text-white">${escapeHtml(s)}</span>
+                        ${extConfig.customSubjects.length > 1 ? `<button type="button" onclick="window.removeCustomVaultSubjFixed(${idx})" class="text-red-400 hover:text-red-300 text-xs font-bold px-2 py-1 rounded bg-slate-900 border border-slate-800">🗑️ Remove</button>` : '<span class="text-[10px] text-slate-500">Default</span>'}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+
+        modalEl.classList.remove('hidden');
+        const inp = document.getElementById('new-vault-subj-input');
+        setTimeout(() => inp?.focus(), 50);
+
+        function addSubjectNow() {
+            const val = (inp.value || '').trim();
+            if (!val) {
+                showToast("Please type a subject name first", true);
+                return;
+            }
+            if (extConfig.customSubjects.some(s => s.toLowerCase() === val.toLowerCase())) {
+                showToast("Subject already exists!", true);
+                return;
+            }
+            extConfig.customSubjects.push(val);
+            activeTaskSubj = val;
+            saveExtConfig();
+            broadcastToCloud();
+            rebuildSubjectPills();
+            renderTasks(activeTaskTab);
+            window.openCustomSubjectModal();
+            showToast(`✅ Subject "${val}" added!`);
+        }
+
+        document.getElementById('confirm-add-vault-subj').onclick = addSubjectNow;
+        inp.onkeydown = (e) => { if (e.key === 'Enter') addSubjectNow(); };
+    };
+
+    window.removeCustomVaultSubjFixed = function(idx) {
+        if (extConfig.customSubjects.length <= 1) return;
+        const removed = extConfig.customSubjects.splice(idx, 1)[0];
+        if (activeTaskSubj === removed) activeTaskSubj = extConfig.customSubjects[0];
+        saveExtConfig();
+        broadcastToCloud();
+        rebuildSubjectPills();
+        renderTasks(activeTaskTab);
+        window.openCustomSubjectModal();
+        showToast(`🗑️ Removed "${removed}"`);
+    };
+
+    function rebuildSubjectPills() {
+        const container = document.getElementById('subject-filter-container');
+        if (!container) return;
+        container.className = "flex gap-1.5 mb-4 shrink-0 overflow-x-auto no-scrollbar pb-1 items-center";
+        container.innerHTML = `<input type="hidden" id="active-subject-input" value="${escapeHtml(activeTaskSubj)}">`;
+
+        extConfig.customSubjects.forEach(subj => {
+            const isAct = (subj === activeTaskSubj);
+            const btn = document.createElement('button');
+            btn.type = "button";
+            btn.className = isAct
+                ? "subj-btn active px-3.5 py-2 bg-slate-700 text-white border border-slate-500 font-bold rounded-xl text-xs transition-all shadow-sm whitespace-nowrap shrink-0"
+                : "subj-btn px-3.5 py-2 bg-slate-900 text-slate-400 border border-slate-800 font-bold rounded-xl text-xs transition-all whitespace-nowrap shrink-0";
+            btn.textContent = subj;
+            btn.onclick = () => {
+                activeTaskSubj = subj;
+                document.getElementById('active-subject-input').value = subj;
+                rebuildSubjectPills();
+                if (activeTaskTab === 'mcq') {
+                    document.getElementById('mcq-subject-title').textContent = `${activeTaskSubj} Daily Target`;
+                    loadMCQInputs();
+                }
+                renderTasks(activeTaskTab);
+            };
+            container.appendChild(btn);
+        });
+
+        const addSubjBtn = document.createElement('button');
+        addSubjBtn.type = "button";
+        addSubjBtn.className = "px-3 py-2 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-400 border border-emerald-700/50 font-bold rounded-xl text-xs whitespace-nowrap shrink-0 active:scale-95 cursor-pointer";
+        addSubjBtn.textContent = "➕ Subject";
+        addSubjBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.openCustomSubjectModal();
+        };
+        container.appendChild(addSubjBtn);
+    }
+
+    rebuildSubjectPills();
+})();
+</script>
 </body>
 </html>
     
