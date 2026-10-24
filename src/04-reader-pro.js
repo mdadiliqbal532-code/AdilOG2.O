@@ -1,7 +1,37 @@
 /* =========================================================================
-   04-READER-PRO.JS — 3D WOODEN SHELF, MANUAL GENRES, PDF STUDIO & SETTINGS 1-10
+   04-READER-PRO.JS (v5.0 MASTER: ISOLATED PAGE ZOOM, 1-CLICK DELETE & SYNC)
    ========================================================================= */
 (function() {
+    // Inject CSS fix so ONLY the book page zooms & scrolls 2D without clipping
+    if (!document.getElementById('v5-reader-zoom-fix-css')) {
+        const st = document.createElement('style');
+        st.id = 'v5-reader-zoom-fix-css';
+        st.textContent = `
+            #reader-viewport {
+                display: block !important;
+                overflow: auto !important;
+                text-align: center;
+                position: relative;
+            }
+            #reader-pages-stage {
+                display: inline-flex !important;
+                flex-direction: column;
+                align-items: center;
+                max-width: none !important;
+                width: auto !important;
+                min-width: 100%;
+                padding: 1rem 1.5rem 5rem 1.5rem !important;
+            }
+            #reader-viewport.mode-dual #reader-pages-stage {
+                display: inline-grid !important;
+                grid-template-columns: repeat(2, auto);
+                justify-content: center;
+                gap: 1.25rem;
+            }
+        `;
+        document.head.appendChild(st);
+    }
+
     /* =========================================================================
        1. READER STATE, CUSTOM GENRES & UNLIMITED APPDATA STORAGE
        ========================================================================= */
@@ -26,20 +56,23 @@
         lockVerticalScroll: false,
         lockHorizontalScroll: false,
         clouds: {
-            local: { name: 'Local PC Folder', icon: '💾', connected: true, status: 'Ready (IndexedDB + Disk)' },
+            local: { name: 'Local Storage / AppData', icon: '💾', connected: true, status: 'Ready (IndexedDB + Disk)' },
             telegram: { name: 'Telegram Cloud', icon: '✈️', connected: false, status: 'Uses Bot Token & Chat ID' },
-            gdrive: { name: 'Google Drive', icon: '☁️', connected: false, folderName: '', token: '', status: 'Not Connected' },
-            dropbox: { name: 'Dropbox', icon: '📦', connected: false, folderName: '', token: '', status: 'Not Connected' },
-            onedrive: { name: 'OneDrive', icon: '☁️', connected: false, folderName: '', token: '', status: 'Not Connected' },
-            mega: { name: 'Mega Storage', icon: 'Ⓜ️', connected: false, folderName: '', status: 'Not Connected' }
+            gdrive: { name: 'Google Drive', icon: '☁️', connected: false, folderName: '', token: '', status: 'Wireless API / Folder' },
+            dropbox: { name: 'Dropbox', icon: '📦', connected: false, folderName: '', token: '', status: 'Wireless API / Folder' },
+            onedrive: { name: 'OneDrive', icon: '☁️', connected: false, folderName: '', token: '', status: 'Wireless API / Folder' },
+            mega: { name: 'Mega Storage', icon: 'Ⓜ️', connected: false, folderName: '', status: 'Synced Folder' }
         }
     };
 
     let mainDirectoryHandle = null;
     let cloudDirectoryHandles = {};
     let pendingManualGenreChoice = null;
+    let isApplyingRemoteReaderSync = false;
+    let readerCloudUnsubscribe = null;
+    let readerWirelessSyncTimer = null;
 
-    window.saveReaderMeta = function() {
+    window.saveReaderMeta = function(skipCloudBroadcast = false) {
         const slimBooks = readerBooks.map(b => {
             const copy = { ...b };
             if (copy.coverDataUrl && copy.coverDataUrl.length > 200) {
@@ -55,7 +88,12 @@
         safeSet('pages_pomodoro_reader_cfg_v1', JSON.stringify(readerSettings));
         safeSet('pages_pomodoro_custom_shelves_v1', JSON.stringify(customShelves));
         updatePendingSyncBadge();
+        updateHomeContinueReadingWidget();
+        pushNativeAndroidWidgetPayload();
         PomoEventBus.emit('reader:updated', { booksCount: readerBooks.length });
+        if (!skipCloudBroadcast && !isApplyingRemoteReaderSync) {
+            broadcastReaderLedgerToCloud();
+        }
     };
 
     async function hydrateBookCoversAndHandles() {
@@ -86,7 +124,7 @@
                 }
             }
         } catch (e) {}
-        saveReaderMeta();
+        saveReaderMeta(true);
         renderWoodenShelf();
     }
 
@@ -107,7 +145,429 @@
     }
 
     /* =========================================================================
-       2. MANUAL-PRIORITY VS. AUTO BOOK IMPORT ENGINE (A3, A4, A5)
+       2. ZERO-CONTRADICTION CRDT WIRELESS BOOK & ANNOTATION SYNC ENGINE
+       ========================================================================= */
+    function mergeSingleBookCRDT(localBook, remoteBook) {
+        if (!localBook) return remoteBook;
+        if (!remoteBook) return localBook;
+
+        const mergedDeleted = Array.from(new Set([
+            ...(localBook.deletedAnnotationIds || []),
+            ...(remoteBook.deletedAnnotationIds || [])
+        ]));
+
+        const annMap = new Map();
+        (localBook.annotations || []).forEach(a => {
+            if (a && a.id && !mergedDeleted.includes(a.id)) annMap.set(a.id, a);
+        });
+        (remoteBook.annotations || []).forEach(rAnn => {
+            if (!rAnn || !rAnn.id || mergedDeleted.includes(rAnn.id)) return;
+            const existing = annMap.get(rAnn.id);
+            if (!existing) {
+                annMap.set(rAnn.id, rAnn);
+            } else {
+                const rTime = rAnn.updatedAt || rAnn.createdAt || 0;
+                const lTime = existing.updatedAt || existing.createdAt || 0;
+                if (rTime >= lTime) annMap.set(rAnn.id, rAnn);
+            }
+        });
+
+        const mergedAnns = Array.from(annMap.values()).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        const rMod = remoteBook.lastModified || 0;
+        const lMod = localBook.lastModified || 0;
+        const newerMeta = rMod > lMod ? remoteBook : localBook;
+
+        let finalShelf = newerMeta.shelfName || localBook.shelfName || 'General Shelf';
+        let finalLock = Boolean(localBook.manualGenreLock || remoteBook.manualGenreLock);
+        if (remoteBook.manualGenreLock && (!localBook.manualGenreLock || rMod >= lMod)) {
+            finalShelf = remoteBook.shelfName;
+        } else if (localBook.manualGenreLock) {
+            finalShelf = localBook.shelfName;
+        }
+
+        const mergedSources = Array.from(new Set([...(localBook.sources || []), ...(remoteBook.sources || [])]));
+        const finalPage = rMod > lMod ? (remoteBook.currentPage || localBook.currentPage || 1) : (localBook.currentPage || remoteBook.currentPage || 1);
+        const finalTotal = Math.max(1, localBook.totalPages || remoteBook.totalPages || 1);
+
+        return {
+            ...localBook,
+            ...newerMeta,
+            id: localBook.id,
+            shelfName: finalShelf,
+            manualGenreLock: finalLock,
+            totalPages: finalTotal,
+            currentPage: finalPage,
+            progressPct: Math.min(100, Math.round((finalPage / finalTotal) * 100)),
+            readingMins: Math.max(localBook.readingMins || 0, remoteBook.readingMins || 0),
+            rev: Math.max(localBook.rev || 1, remoteBook.rev || 1),
+            cloudBinaryAvailable: Boolean(localBook.cloudBinaryAvailable || remoteBook.cloudBinaryAvailable),
+            dropboxPath: remoteBook.dropboxPath || localBook.dropboxPath || '',
+            sources: mergedSources,
+            annotations: mergedAnns,
+            deletedAnnotationIds: mergedDeleted,
+            lastModified: Math.max(lMod, rMod)
+        };
+    }
+
+    function broadcastReaderLedgerToCloud() {
+        const roomId = safeGet('pages_pomodoro_sync_room', '');
+        if (!roomId || isApplyingRemoteReaderSync || typeof firebase === 'undefined' || !firebase.apps?.length) return;
+        clearTimeout(readerWirelessSyncTimer);
+        readerWirelessSyncTimer = setTimeout(async () => {
+            try {
+                const db = firebase.firestore();
+                const ledgerDoc = db.collection('artifacts').doc('neettimercloud')
+                    .collection('public').doc('data')
+                    .collection('sync_rooms').doc(roomId)
+                    .collection('reader_pro').doc('ledger');
+
+                const slimBooks = readerBooks.map(b => ({ ...b, coverDataUrl: '' }));
+                await ledgerDoc.set({
+                    booksJson: JSON.stringify(slimBooks),
+                    shelvesJson: JSON.stringify(customShelves),
+                    readingLogJson: JSON.stringify(readerReadingLog),
+                    updatedAt: Date.now()
+                }, { merge: true });
+            } catch (e) {}
+        }, 450);
+    }
+
+    function attachWirelessReaderCloudListener() {
+        const roomId = safeGet('pages_pomodoro_sync_room', '');
+        if (!roomId || typeof firebase === 'undefined' || !firebase.apps?.length) return;
+        try {
+            if (readerCloudUnsubscribe) readerCloudUnsubscribe();
+            const db = firebase.firestore();
+            const ledgerDoc = db.collection('artifacts').doc('neettimercloud')
+                .collection('public').doc('data')
+                .collection('sync_rooms').doc(roomId)
+                .collection('reader_pro').doc('ledger');
+
+            readerCloudUnsubscribe = ledgerDoc.onSnapshot((snap) => {
+                if (!snap.exists) return;
+                const data = snap.data();
+                isApplyingRemoteReaderSync = true;
+                try {
+                    if (data.shelvesJson) {
+                        const rShelves = JSON.parse(data.shelvesJson);
+                        rShelves.forEach(rs => {
+                            if (!customShelves.some(cs => cs.name.toLowerCase() === rs.name.toLowerCase())) {
+                                customShelves.push(rs);
+                            }
+                        });
+                    }
+                    if (data.readingLogJson) {
+                        const rLog = JSON.parse(data.readingLogJson);
+                        Object.entries(rLog).forEach(([dateKey, dayVal]) => {
+                            if (!readerReadingLog[dateKey]) readerReadingLog[dateKey] = dayVal;
+                            else readerReadingLog[dateKey].totalMins = Math.max(readerReadingLog[dateKey].totalMins || 0, dayVal.totalMins || 0);
+                        });
+                    }
+                    if (data.booksJson) {
+                        const remoteBooks = JSON.parse(data.booksJson);
+                        const bookMap = new Map();
+                        readerBooks.forEach(lb => bookMap.set(lb.id, lb));
+                        remoteBooks.forEach(rb => {
+                            if (!rb || !rb.id) return;
+                            const existing = bookMap.get(rb.id);
+                            bookMap.set(rb.id, existing ? mergeSingleBookCRDT(existing, rb) : rb);
+                        });
+                        window.readerBooks = Array.from(bookMap.values());
+                    }
+
+                    saveReaderMeta(true);
+                    renderWoodenShelf();
+
+                    if (activeReaderBook) {
+                        const updatedActive = readerBooks.find(x => x.id === activeReaderBook.id);
+                        if (updatedActive) {
+                            activeReaderBook = updatedActive;
+                            refreshVisiblePageSvgs();
+                        }
+                    }
+                } catch (err) {}
+                isApplyingRemoteReaderSync = false;
+            });
+        } catch (e) {}
+    }
+    setTimeout(attachWirelessReaderCloudListener, 900);
+    document.getElementById('login-sync-btn')?.addEventListener('click', () => setTimeout(attachWirelessReaderCloudListener, 1200));
+
+    function arrayBufferToBase64(buffer) {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i += 8192) {
+            binary += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(len, i + 8192)));
+        }
+        return btoa(binary);
+    }
+
+    function base64ToArrayBuffer(base64) {
+        const binary = atob(base64);
+        const len = binary.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes.buffer;
+    }
+
+    window.uploadBookBinaryToWirelessCloud = async function(bookId) {
+        const b = readerBooks.find(x => x.id === bookId);
+        if (!b) return;
+        const stored = await idbGet('bookFiles', b.id);
+        if (!stored || !stored.originalBytes) {
+            showToast("Book binary is not on this device yet.", true);
+            return;
+        }
+        const bakedBytes = await bakeAnnotationsIntoPdfBytes(b, stored.originalBytes);
+
+        const dbxToken = readerSettings.clouds?.dropbox?.token?.trim();
+        if (dbxToken) {
+            try {
+                showToast(`📦 Uploading "${b.title}" to Dropbox Wireless Cloud...`);
+                const dbxPath = `/PomoReader/${b.fileName}`;
+                const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${dbxToken}`,
+                        'Dropbox-API-Arg': JSON.stringify({ path: dbxPath, mode: 'overwrite', autorename: false, mute: true }),
+                        'Content-Type': 'application/octet-stream'
+                    },
+                    body: bakedBytes
+                });
+                if (res.ok) {
+                    b.dropboxPath = dbxPath;
+                    b.cloudBinaryAvailable = true;
+                    if (!b.sources.includes('dropbox')) b.sources.push('dropbox');
+                    b.lastModified = Date.now();
+                    saveReaderMeta();
+                    showToast(`✅ "${b.title}" synced to Dropbox!`);
+                    return;
+                }
+            } catch (e) {}
+        }
+
+        const roomId = safeGet('pages_pomodoro_sync_room', '');
+        if (!roomId || typeof firebase === 'undefined') {
+            showToast("Connect your Cloud Room ID (in Profile -> Cloud) first!", true);
+            return;
+        }
+        if (bakedBytes.byteLength > 15 * 1024 * 1024) {
+            showToast("Book > 15MB: Add a free Dropbox Token in 'My Files' for large PDF cloud transfers!", true);
+            return;
+        }
+
+        try {
+            showToast(`☁️ Uploading "${b.title}" to Wireless Cloud Room...`);
+            const b64 = arrayBufferToBase64(bakedBytes);
+            const chunkSize = 650000;
+            const totalChunks = Math.ceil(b64.length / chunkSize);
+            const db = firebase.firestore();
+            const binRef = db.collection('artifacts').doc('neettimercloud')
+                .collection('public').doc('data')
+                .collection('sync_rooms').doc(roomId)
+                .collection('reader_binaries').doc(b.id);
+
+            await binRef.set({ fileName: b.fileName, totalChunks, byteLength: bakedBytes.byteLength, updatedAt: Date.now() });
+            for (let c = 0; c < totalChunks; c++) {
+                await binRef.collection('chunks').doc(String(c)).set({ idx: c, data: b64.slice(c * chunkSize, (c + 1) * chunkSize) });
+            }
+            b.cloudBinaryAvailable = true;
+            b.lastModified = Date.now();
+            saveReaderMeta();
+            showToast(`✅ "${b.title}" uploaded to Wireless Room!`);
+        } catch (err) {
+            showToast("Wireless upload interrupted.", true);
+        }
+    };
+
+    window.downloadBookBinaryFromWirelessCloud = async function(bookId) {
+        const b = readerBooks.find(x => x.id === bookId);
+        if (!b) return null;
+
+        const dbxToken = readerSettings.clouds?.dropbox?.token?.trim();
+        if (b.dropboxPath && dbxToken) {
+            try {
+                showToast(`📲 Downloading "${b.title}" from Dropbox...`);
+                const res = await fetch('https://content.dropboxapi.com/2/files/download', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${dbxToken}`,
+                        'Dropbox-API-Arg': JSON.stringify({ path: b.dropboxPath })
+                    }
+                });
+                if (res.ok) {
+                    const arrayBuffer = await res.arrayBuffer();
+                    const pdfMeta = b.format === 'pdf' ? await generatePdfCoverAndMeta(arrayBuffer) : {};
+                    if (pdfMeta.coverDataUrl) {
+                        coverMemoryCache[b.id] = pdfMeta.coverDataUrl;
+                        await idbPut('bookCovers', { id: b.id, coverDataUrl: pdfMeta.coverDataUrl });
+                    }
+                    const record = { id: b.id, originalBytes: arrayBuffer, bakedBytes: arrayBuffer, extractedPagesText: [] };
+                    await idbPut('bookFiles', record);
+                    showToast(`✅ "${b.title}" downloaded!`);
+                    return record;
+                }
+            } catch (e) {}
+        }
+
+        const roomId = safeGet('pages_pomodoro_sync_room', '');
+        if (!roomId || typeof firebase === 'undefined') return null;
+        try {
+            showToast(`📲 Downloading "${b.title}" from Wireless Room...`);
+            const db = firebase.firestore();
+            const binRef = db.collection('artifacts').doc('neettimercloud')
+                .collection('public').doc('data')
+                .collection('sync_rooms').doc(roomId)
+                .collection('reader_binaries').doc(b.id);
+
+            const metaSnap = await binRef.get();
+            if (!metaSnap.exists) return null;
+            const chunksSnap = await binRef.collection('chunks').get();
+            const chunks = [];
+            chunksSnap.forEach(doc => chunks.push(doc.data()));
+            chunks.sort((a, b) => a.idx - b.idx);
+            const arrayBuffer = base64ToArrayBuffer(chunks.map(c => c.data).join(''));
+
+            if (b.format === 'pdf') {
+                const pdfMeta = await generatePdfCoverAndMeta(arrayBuffer);
+                if (pdfMeta.coverDataUrl) {
+                    coverMemoryCache[b.id] = pdfMeta.coverDataUrl;
+                    await idbPut('bookCovers', { id: b.id, coverDataUrl: pdfMeta.coverDataUrl });
+                }
+            }
+            const record = { id: b.id, originalBytes: arrayBuffer, bakedBytes: arrayBuffer, extractedPagesText: [] };
+            await idbPut('bookFiles', record);
+            renderWoodenShelf();
+            showToast(`✅ "${b.title}" downloaded wirelessly!`);
+            return record;
+        } catch (e) { return null; }
+    };
+
+    /* =========================================================================
+       3. HOME WIDGET, FLOATING PiP MINI-COCKPIT & NATIVE APK WIDGET BRIDGE
+       ========================================================================= */
+    function mountHomeContinueReadingWidget() {
+        const rightCol = document.querySelector('#page-timer .cockpit-right');
+        if (!rightCol || document.getElementById('home-reader-widget-card')) return;
+        const widget = document.createElement('div');
+        widget.id = 'home-reader-widget-card';
+        widget.className = "w-full bg-slate-900/90 border border-slate-800/90 p-3 rounded-2xl shadow-lg flex items-center justify-between gap-3";
+        rightCol.appendChild(widget);
+        updateHomeContinueReadingWidget();
+    }
+
+    function updateHomeContinueReadingWidget() {
+        const widget = document.getElementById('home-reader-widget-card');
+        if (!widget) return;
+        const sorted = [...readerBooks].sort((a, b) => (b.lastOpened || 0) - (a.lastOpened || 0));
+        const latest = sorted[0];
+
+        if (!latest) {
+            widget.innerHTML = `
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <span class="text-2xl">📖</span>
+                    <div>
+                        <p class="text-[10px] font-extrabold uppercase tracking-widest text-amber-400">Reader Pro Widget</p>
+                        <p class="text-xs font-bold text-slate-300">No books imported yet — Tap to open Wooden Shelf</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button type="button" onclick="window.launchPipMiniCockpitWidget()" class="bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 px-2.5 py-1.5 rounded-xl text-[10px] font-bold">🖼️ PiP Widget</button>
+                    <button type="button" onclick="switchPage('page-reader')" class="bg-blue-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold">Open Shelf</button>
+                </div>
+            `;
+            return;
+        }
+
+        const pct = Math.min(100, Math.round(((latest.currentPage || 1) / Math.max(1, latest.totalPages || 1)) * 100));
+        widget.innerHTML = `
+            <div class="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer" onclick="openBookAtPage('${latest.id}', ${latest.currentPage || 1})">
+                <div class="w-9 h-12 rounded-lg bg-slate-950 border border-amber-500/40 shrink-0 bg-cover bg-center flex items-center justify-center text-xs" style="${coverMemoryCache[latest.id] ? `background-image:url('${coverMemoryCache[latest.id]}')` : ''}">
+                    ${coverMemoryCache[latest.id] ? '' : '📘'}
+                </div>
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[9px] font-extrabold uppercase tracking-wider text-amber-400">📖 Continue Reading</span>
+                        <span class="text-[9px] font-mono text-emerald-400 font-bold">${pct}% • p.${latest.currentPage}/${latest.totalPages}</span>
+                    </div>
+                    <p class="text-xs font-extrabold text-white truncate">${escapeHtml(latest.title)}</p>
+                    <div class="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800 mt-1">
+                        <div class="h-full bg-gradient-to-r from-amber-500 to-emerald-400 rounded-full" style="width:${pct}%"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+                <button type="button" onclick="window.launchPipMiniCockpitWidget()" class="bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 px-2.5 py-2 rounded-xl text-[10px] font-bold">🖼️ PiP</button>
+                <button type="button" onclick="openBookAtPage('${latest.id}', ${latest.currentPage || 1})" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow">Resume ➔</button>
+            </div>
+        `;
+    }
+
+    let pipVideoEl = null, pipCanvasEl = null, pipRenderInterval = null;
+    window.launchPipMiniCockpitWidget = async function() {
+        try {
+            if (document.pictureInPictureElement) {
+                await document.exitPictureInPicture();
+                clearInterval(pipRenderInterval);
+                return;
+            }
+            if (!pipCanvasEl) {
+                pipCanvasEl = document.createElement('canvas');
+                pipCanvasEl.width = 420; pipCanvasEl.height = 220;
+                pipVideoEl = document.createElement('video');
+                pipVideoEl.muted = true; pipVideoEl.playsInline = true;
+                pipVideoEl.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0.01;pointer-events:none;';
+                document.body.appendChild(pipVideoEl);
+            }
+            const drawPipFrame = () => {
+                const ctx = pipCanvasEl.getContext('2d');
+                ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, 420, 220);
+                ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 4; ctx.strokeRect(4, 4, 412, 212);
+                ctx.fillStyle = '#60a5fa'; ctx.font = 'bold 14px Inter, sans-serif';
+                ctx.fillText(`⚡ DEENTIMER PRO  •  ${document.getElementById('current-phase-display')?.textContent || 'READY'}`, 20, 32);
+                ctx.fillStyle = '#ffffff'; ctx.font = 'bold 64px monospace';
+                ctx.fillText(document.getElementById('time-display')?.textContent || '00:00', 20, 108);
+                ctx.fillStyle = '#34d399'; ctx.font = 'bold 15px monospace';
+                ctx.fillText(`🧠 Study: ${document.getElementById('hud-study-hours-text')?.textContent || '0.0h'}   🕋 Salah: ${document.getElementById('salah-score-badge')?.textContent || '0/5'}`, 20, 152);
+                const latestBook = readerBooks[0];
+                ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 13px Inter, sans-serif';
+                ctx.fillText(latestBook ? `📖 ${latestBook.title.slice(0, 32)} (p.${latestBook.currentPage}/${latestBook.totalPages})` : '📖 Reader Pro Ready', 20, 188);
+            };
+            drawPipFrame();
+            clearInterval(pipRenderInterval);
+            pipRenderInterval = setInterval(drawPipFrame, 800);
+            if (!pipVideoEl.srcObject) pipVideoEl.srcObject = pipCanvasEl.captureStream(10);
+            await pipVideoEl.play();
+            await pipVideoEl.requestPictureInPicture();
+        } catch (e) {
+            showToast("PiP Widget requires Chrome/Edge desktop or Android PiP permission.", true);
+        }
+    };
+
+    function pushNativeAndroidWidgetPayload() {
+        try {
+            const rpg = window.calculateLifetimeRPGStats ? window.calculateLifetimeRPGStats() : { level: 0 };
+            const latestBook = readerBooks[0] || null;
+            const payload = JSON.stringify({
+                timer: document.getElementById('time-display')?.textContent || '00:00',
+                studyHours: (getTodayStudyMinutes() / 60).toFixed(1),
+                deenHours: (getTodayDeenMinutes() / 60).toFixed(1),
+                salahScore: `${getTodaySalahDoneCount()}/5`,
+                rpgLevel: rpg.level,
+                activeBookTitle: latestBook ? latestBook.title : 'No Active Book',
+                activeBookPage: latestBook ? `${latestBook.currentPage}/${latestBook.totalPages}` : '0/0',
+                updatedAt: Date.now()
+            });
+            localStorage.setItem('pages_pomodoro_android_widget_payload', payload);
+            if (window.AndroidBridge && typeof window.AndroidBridge.updateHomeWidgets === 'function') {
+                window.AndroidBridge.updateHomeWidgets(payload);
+            }
+        } catch (e) {}
+    }
+
+    /* =========================================================================
+       4. MANUAL-PRIORITY VS. AUTO BOOK IMPORT ENGINE (A3, A4, A5)
        ========================================================================= */
     async function computeBookFingerprint(file, arrayBuffer) {
         const bytes = new Uint8Array(arrayBuffer);
@@ -143,8 +603,7 @@
             const page = await pdf.getPage(1);
             const vp = page.getViewport({ scale: 0.45 });
             const canvas = document.createElement('canvas');
-            canvas.width = vp.width;
-            canvas.height = vp.height;
+            canvas.width = vp.width; canvas.height = vp.height;
             await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
             info.coverDataUrl = canvas.toDataURL('image/jpeg', 0.78);
         } catch (e) {}
@@ -154,24 +613,17 @@
     function openManualImportPriorityModal() {
         const sel = document.getElementById('v45-import-genre-select');
         const newInp = document.getElementById('v45-import-new-genre-inp');
-        if (!sel) {
-            document.getElementById('reader-book-file-input').click();
-            return;
-        }
+        if (!sel) { document.getElementById('reader-book-file-input').click(); return; }
         if (newInp) newInp.value = '';
         sel.innerHTML = customShelves.map(sh => `<option value="${escapeHtml(sh.name)}" data-cat="${sh.category}">🪵 ${escapeHtml(sh.name)} (${sh.category.toUpperCase()})</option>`).join('');
         document.getElementById('v45-manual-import-modal').classList.remove('hidden');
     }
 
-    document.getElementById('v45-close-manual-import')?.addEventListener('click', () => {
-        document.getElementById('v45-manual-import-modal').classList.add('hidden');
-    });
-
+    document.getElementById('v45-close-manual-import')?.addEventListener('click', () => document.getElementById('v45-manual-import-modal').classList.add('hidden'));
     document.getElementById('v45-proceed-file-pick-btn')?.addEventListener('click', () => {
         const newGenreName = (document.getElementById('v45-import-new-genre-inp')?.value || '').trim();
         const catVal = document.getElementById('v45-import-cat-select')?.value || 'study';
         const existingSel = document.getElementById('v45-import-genre-select');
-
         let chosenShelf = existingSel?.value || (customShelves[0]?.name || 'General Shelf');
         let chosenCat = existingSel?.selectedOptions?.[0]?.getAttribute('data-cat') || catVal;
 
@@ -183,7 +635,6 @@
                 saveReaderMeta();
             }
         }
-
         pendingManualGenreChoice = { shelfName: chosenShelf, category: chosenCat, isManual: true };
         document.getElementById('v45-manual-import-modal').classList.add('hidden');
         document.getElementById('reader-book-file-input').click();
@@ -196,7 +647,6 @@
         const arrayBuffer = await file.arrayBuffer();
         const bookId = await computeBookFingerprint(file, arrayBuffer);
 
-        // Priority Check: Manual Import overrides Genre; Auto-Import never overwrites a manually locked book
         let existing = readerBooks.find(b => b.id === bookId || (b.fileName === file.name && b.fileSize === file.size));
         if (existing) {
             if (!existing.sources.includes(sourceTag)) existing.sources.push(sourceTag);
@@ -205,7 +655,9 @@
                 existing.category = manualChoice.category;
                 existing.manualGenreLock = true;
                 existing.lastOpened = Date.now();
+                existing.lastModified = Date.now();
             }
+            await idbPut('bookFiles', { id: existing.id, originalBytes: arrayBuffer, bakedBytes: arrayBuffer, extractedPagesText: [] });
             if (fileHandle) await idbPut('handles', { key: 'file_' + existing.id, handle: fileHandle });
             saveReaderMeta();
             return existing;
@@ -246,55 +698,26 @@
 
         const cleanTitle = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ');
         const isDeenGuess = /quran|tafseer|hadith|seerah|fiqh|islam|deen|salah|dua|ummah|kathir|bidaya/i.test(cleanTitle);
-
-        const finalShelfName = (manualChoice && manualChoice.shelfName)
-            ? manualChoice.shelfName
-            : (isDeenGuess ? 'Quran, Tafseer & Hadith' : (customShelves[0]?.name || 'Core Academic & Exam Prep'));
-        const finalCategory = (manualChoice && manualChoice.category)
-            ? manualChoice.category
-            : (isDeenGuess ? 'deen' : 'study');
+        const finalShelfName = (manualChoice && manualChoice.shelfName) ? manualChoice.shelfName : (isDeenGuess ? 'Quran, Tafseer & Hadith' : (customShelves[0]?.name || 'Core Academic & Exam Prep'));
+        const finalCategory = (manualChoice && manualChoice.category) ? manualChoice.category : (isDeenGuess ? 'deen' : 'study');
 
         const newBook = {
-            id: bookId,
-            title: cleanTitle,
-            author,
+            id: bookId, title: cleanTitle, author,
             description: `Imported from ${sourceTag.toUpperCase()} (${(file.size / 1048576).toFixed(2)} MB)`,
-            fileName: file.name,
-            format: ext,
-            fileSize: file.size,
-            totalPages,
-            currentPage: 1,
-            progressPct: 0,
-            category: finalCategory,
-            shelfName: finalShelfName,
+            fileName: file.name, format: ext, fileSize: file.size,
+            totalPages, currentPage: 1, progressPct: Math.min(100, Math.round((1 / Math.max(1, totalPages)) * 100)),
+            category: finalCategory, shelfName: finalShelfName,
             manualGenreLock: Boolean(manualChoice && manualChoice.isManual),
-            favorite: false,
-            rating: 5,
-            creator,
-            producer,
+            favorite: false, rating: 5, creator, producer,
             locationPath: readerSettings.mainFolderName ? `${readerSettings.mainFolderName}/${file.name}` : `${sourceTag.toUpperCase()}://${file.name}`,
-            sources: [sourceTag],
-            coverDataUrl,
-            readingMins: 0,
-            dailyTargetMins: 30,
-            remindOnTarget: true,
-            openMode: 'last',
-            autoSync: true,
-            manualSyncOnly: false,
-            pendingCloudSync: false,
-            rev: 1,
-            lastModified: Date.now(),
-            lastOpened: Date.now(),
-            outline,
-            annotations: []
+            sources: [sourceTag], coverDataUrl, readingMins: 0, dailyTargetMins: 30,
+            remindOnTarget: true, openMode: 'last', autoSync: true, manualSyncOnly: false,
+            pendingCloudSync: false, cloudBinaryAvailable: false,
+            rev: 1, lastModified: Date.now(), lastOpened: Date.now(),
+            outline, annotations: [], deletedAnnotationIds: []
         };
 
-        await idbPut('bookFiles', {
-            id: bookId,
-            originalBytes: arrayBuffer,
-            bakedBytes: arrayBuffer,
-            extractedPagesText
-        });
+        await idbPut('bookFiles', { id: bookId, originalBytes: arrayBuffer, bakedBytes: arrayBuffer, extractedPagesText });
         if (coverDataUrl) {
             coverMemoryCache[bookId] = coverDataUrl;
             await idbPut('bookCovers', { id: bookId, coverDataUrl });
@@ -310,8 +733,7 @@
         if (!fileList || !fileList.length) return;
         const choiceToUse = manualChoice || pendingManualGenreChoice;
         pendingManualGenreChoice = null;
-
-        showToast(`📥 Importing ${fileList.length} book(s)${choiceToUse ? ` into "${choiceToUse.shelfName}"` : ''}...`);
+        showToast(`📥 Importing ${fileList.length} book(s)...`);
         let count = 0;
         for (const f of Array.from(fileList)) {
             const added = await importBookFileObject(f, sourceTag, null, choiceToUse);
@@ -320,7 +742,7 @@
         renderWoodenShelf();
         renderA9StatsAndClock();
         renderA10MyFiles();
-        showToast(`✅ ${count} book(s) ready${choiceToUse ? ` in "${choiceToUse.shelfName}"` : ''}!`);
+        showToast(`✅ ${count} book(s) ready!`);
     };
 
     document.getElementById('shelf-quick-import-btn')?.addEventListener('click', openManualImportPriorityModal);
@@ -368,10 +790,8 @@
             }
             renderWoodenShelf();
             renderA10MyFiles();
-            showToast(imported > 0 ? `📂 Auto-Imported ${imported} new book(s) (Manual Genre Locks preserved!)` : `📂 Folder "${dirHandle.name}" is up to date.`);
-        } catch (e) {
-            showToast("Click 'Scan Now' to grant folder read access.", true);
-        }
+            showToast(imported > 0 ? `📂 Auto-Imported ${imported} new book(s)` : `📂 Folder "${dirHandle.name}" is up to date.`);
+        } catch (e) { showToast("Click 'Scan Now' to grant folder read access.", true); }
     }
 
     document.getElementById('shelf-scan-folder-btn')?.addEventListener('click', pickAndScanMainFolder);
@@ -381,15 +801,7 @@
         else pickAndScanMainFolder();
     });
     document.getElementById('reader-folder-fallback-input')?.addEventListener('change', (e) => {
-        if (e.target.files.length > 0) {
-            const rel = e.target.files[0].webkitRelativePath || '';
-            if (rel.includes('/')) {
-                readerSettings.mainFolderName = rel.split('/')[0];
-                saveReaderMeta();
-                updateMainFolderUI();
-            }
-            handleMultipleBookImport(e.target.files, 'local', null);
-        }
+        if (e.target.files.length > 0) handleMultipleBookImport(e.target.files, 'local', null);
     });
     document.getElementById('toggle-auto-folder-import-btn')?.addEventListener('click', () => {
         readerSettings.autoFolderImport = !readerSettings.autoFolderImport;
@@ -398,7 +810,7 @@
     });
 
     /* =========================================================================
-       3. 3D WOODEN BOOKSHELF & CUSTOM GENRE MANAGER (ADD, MOVE, DELETE GENRE)
+       5. 3D WOODEN BOOKSHELF & CUSTOM GENRE MANAGER
        ========================================================================= */
     let activeShelfFilter = 'all';
     let activeCustomShelfFilter = 'all';
@@ -445,27 +857,16 @@
         `;
     }
 
-    window.selectCustomShelfFilter = function(name) {
-        activeCustomShelfFilter = name;
-        renderWoodenShelf();
-    };
-    window.toggleShelfLayoutMode = function() {
-        shelfDisplayLayout = shelfDisplayLayout === 'sections' ? 'grid' : 'sections';
-        activeCustomShelfFilter = 'all';
-        renderWoodenShelf();
-    };
+    window.selectCustomShelfFilter = function(name) { activeCustomShelfFilter = name; renderWoodenShelf(); };
+    window.toggleShelfLayoutMode = function() { shelfDisplayLayout = shelfDisplayLayout === 'sections' ? 'grid' : 'sections'; activeCustomShelfFilter = 'all'; renderWoodenShelf(); };
 
     window.deleteGenreShelfByName = function(genreName) {
-        customShelves = customShelves.filter(s => s.name !== genreName);
-        readerBooks.forEach(b => {
-            if (b.shelfName === genreName) {
-                b.shelfName = customShelves[0]?.name || 'General Shelf';
-            }
-        });
+        window.customShelves = customShelves.filter(s => s.name !== genreName);
+        readerBooks.forEach(b => { if (b.shelfName === genreName) b.shelfName = customShelves[0]?.name || 'General Shelf'; });
         if (activeCustomShelfFilter === genreName) activeCustomShelfFilter = 'all';
         saveReaderMeta();
         renderWoodenShelf();
-        showToast(`🗑️ Genre "${genreName}" deleted (Books safely kept on shelf)`);
+        showToast(`🗑️ Genre "${genreName}" deleted`);
     };
 
     window.addBookDirectlyToGenre = function(genreName, cat = 'study') {
@@ -509,7 +910,7 @@
 
         rowsContainer.innerHTML = '';
         if (!filtered.length) {
-            rowsContainer.innerHTML = `<div class="wood-shelf-row py-12 text-center flex flex-col items-center justify-center gap-2"><span class="text-4xl">📚</span><p class="text-sm font-bold text-amber-200">No books in this genre view yet.</p><p class="text-xs text-amber-100/60">Click "➕ Import Books" above (or drag & drop any PDF/EPUB file onto this window) to add books!</p></div>`;
+            rowsContainer.innerHTML = `<div class="wood-shelf-row py-12 text-center flex flex-col items-center justify-center gap-2"><span class="text-4xl">📚</span><p class="text-sm font-bold text-amber-200">No books in this genre view yet.</p><p class="text-xs text-amber-100/60">Click "➕ Import Books" above to add books!</p></div>`;
             return;
         }
 
@@ -534,7 +935,7 @@
                             <button type="button" onclick="window.addBookDirectlyToGenre('${escapeHtml(shelfName)}')" class="bg-amber-600/30 hover:bg-amber-600 text-amber-200 hover:text-white border border-amber-500/40 text-[10px] font-bold px-2.5 py-1 rounded-lg">➕ Add Book Here</button>
                             <button type="button" onclick="window.syncShelfToTodo('${escapeHtml(shelfName)}')" class="bg-blue-950/90 hover:bg-blue-800 text-blue-200 border border-blue-500/40 text-[10px] font-bold px-2.5 py-1 rounded-lg">☑️ To-Do</button>
                             <button type="button" onclick="window.startBookFocusSession('${gBooks[0].id}')" class="bg-emerald-950/90 hover:bg-emerald-800 text-emerald-200 border border-emerald-500/40 text-[10px] font-bold px-2.5 py-1 rounded-lg">⏱️ Focus</button>
-                            <button type="button" onclick="window.deleteGenreShelfByName('${escapeHtml(shelfName)}')" class="bg-red-950/80 hover:bg-red-700 text-red-300 hover:text-white border border-red-600/40 text-[10px] font-bold px-2 py-1 rounded-lg" title="Delete Genre Shelf">🗑️</button>
+                            <button type="button" onclick="window.deleteGenreShelfByName('${escapeHtml(shelfName)}')" class="bg-red-950/80 hover:bg-red-700 text-red-300 hover:text-white border border-red-600/40 text-[10px] font-bold px-2 py-1 rounded-lg">🗑️</button>
                         </div>
                     </div>
                 `;
@@ -553,7 +954,9 @@
             const rowEl = document.createElement('div');
             rowEl.className = "wood-shelf-row grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5 px-2 pt-2";
             slice.forEach(book => {
-                const pct = Math.min(100, Math.max(0, Math.round(book.progressPct || 0)));
+                const curP = Math.max(1, book.currentPage || 1);
+                const totP = Math.max(1, book.totalPages || 1);
+                const pct = Math.min(100, Math.round((curP / totP) * 100));
                 const catBadge = book.category === 'deen' ? '🕌' : (book.category === 'study' ? '🧠' : '🚀');
                 const coverUrl = coverMemoryCache[book.id] || book.coverDataUrl || '';
                 const card = document.createElement('div');
@@ -565,14 +968,14 @@
                 }
                 card.onclick = () => openBookInReader(book.id);
                 card.innerHTML = `
-                    <button class="book-corner-menu-btn" title="Book Details, Cover & Move Genre" onclick="event.stopPropagation(); window.openBookCornerModal('${book.id}')">⋮</button>
+                    <button class="book-corner-menu-btn" title="Book Details, Cover & Genre" onclick="event.stopPropagation(); window.openBookCornerModal('${book.id}')">⋮</button>
                     <div class="p-2.5 flex flex-col gap-1">
                         <div class="flex items-center gap-1 flex-wrap pr-7">
                             <span class="bg-slate-950/90 text-[10px] font-extrabold px-1.5 py-0.5 rounded border border-slate-700 text-white">${catBadge} ${(book.format || 'pdf').toUpperCase()}</span>
-                            ${book.manualGenreLock ? '<span class="bg-emerald-950/90 text-emerald-300 border border-emerald-600/40 text-[8px] font-bold px-1 rounded" title="Manual Genre Priority Locked">🔒 Manual</span>' : ''}
+                            ${book.cloudBinaryAvailable ? '<span class="bg-cyan-950/90 text-cyan-300 border border-cyan-600/40 text-[8px] font-bold px-1 rounded">☁️ Wireless</span>' : ''}
                             ${book.favorite ? '<span class="text-xs">❤️</span>' : ''}
                         </div>
-                        <button type="button" onclick="event.stopPropagation(); window.openAssignShelfModal('${book.id}')" class="bg-amber-950/90 hover:bg-amber-700 text-amber-300 hover:text-white border border-amber-500/50 text-[9px] font-extrabold px-2 py-0.5 rounded-md w-fit max-w-full truncate flex items-center gap-1" title="Click to Move Book to Another Genre Shelf">
+                        <button type="button" onclick="event.stopPropagation(); window.openAssignShelfModal('${book.id}')" class="bg-amber-950/90 hover:bg-amber-700 text-amber-300 hover:text-white border border-amber-500/50 text-[9px] font-extrabold px-2 py-0.5 rounded-md w-fit max-w-full truncate flex items-center gap-1">
                             <span>🪵 ${escapeHtml(book.shelfName || 'General Shelf')}</span> <span>⇄</span>
                         </button>
                     </div>
@@ -581,14 +984,14 @@
                         <p class="text-[10px] text-slate-300 truncate">${escapeHtml(book.author || 'Unknown Author')}</p>
                         <div class="flex items-center justify-between text-[10px] font-mono mt-0.5">
                             <span class="text-emerald-400 font-bold">${pct}%</span>
-                            <span class="text-slate-400">p.${book.currentPage || 1}/${book.totalPages || 1}</span>
+                            <span class="text-slate-400">p.${curP}/${totP}</span>
                         </div>
                         <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
                             <div class="h-full bg-gradient-to-r from-blue-500 to-emerald-400 rounded-full" style="width: ${pct}%"></div>
                         </div>
                         <div class="flex items-center gap-1 mt-1.5 pt-1 border-t border-slate-800/80">
                             <button type="button" onclick="event.stopPropagation(); window.startBookFocusSession('${book.id}')" class="flex-1 bg-emerald-600/25 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/40 text-[9px] font-bold py-1 rounded">⏱️ Focus</button>
-                            <button type="button" onclick="event.stopPropagation(); window.quickAddBookToTodo('${book.id}')" class="flex-1 bg-blue-600/25 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 text-[9px] font-bold py-1 rounded">☑️ To-Do</button>
+                            <button type="button" onclick="event.stopPropagation(); window.uploadBookBinaryToWirelessCloud('${book.id}')" class="flex-1 bg-cyan-600/25 hover:bg-cyan-600 text-cyan-300 hover:text-white border border-cyan-500/40 text-[9px] font-bold py-1 rounded">☁️ Push</button>
                         </div>
                     </div>
                 `;
@@ -621,13 +1024,10 @@
         const bodyEl = document.getElementById('suboptions-modal-body');
         titleEl.textContent = "🪵 Create, Rename or Delete Genres / Shelves";
         bodyEl.innerHTML = `
-            <p class="text-xs text-slate-400">Create custom genres/shelves, add books directly into a genre, or delete any genre anytime.</p>
             <div class="flex gap-2">
                 <input type="text" id="new-shelf-inp" placeholder="New Genre / Shelf Name..." class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
                 <select id="new-shelf-cat" class="bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-xs text-white font-bold">
-                    <option value="study">🧠 Study</option>
-                    <option value="deen">🕌 Deen</option>
-                    <option value="side">🚀 Life</option>
+                    <option value="study">🧠 Study</option><option value="deen">🕌 Deen</option><option value="side">🚀 Life</option>
                 </select>
                 <button type="button" id="create-shelf-btn" class="bg-emerald-600 text-white font-bold px-4 py-2 rounded-xl text-xs">＋ Create</button>
             </div>
@@ -655,7 +1055,6 @@
                 saveReaderMeta();
                 renderWoodenShelf();
                 window.openManageShelvesModal();
-                showToast(`🪵 Genre "${name}" created!`);
             }
         };
     };
@@ -663,9 +1062,7 @@
     window.deleteCustomShelf = function(idx) {
         const removed = customShelves.splice(idx, 1)[0];
         if (removed) {
-            readerBooks.forEach(b => {
-                if (b.shelfName === removed.name) b.shelfName = customShelves[0]?.name || 'General Shelf';
-            });
+            readerBooks.forEach(b => { if (b.shelfName === removed.name) b.shelfName = customShelves[0]?.name || 'General Shelf'; });
             if (activeCustomShelfFilter === removed.name) activeCustomShelfFilter = 'all';
         }
         saveReaderMeta();
@@ -711,9 +1108,10 @@
             b.shelfName = shelfName;
             if (cat) b.category = cat;
             b.manualGenreLock = true;
+            b.lastModified = Date.now();
             saveReaderMeta();
             renderWoodenShelf();
-            showToast(`📘 Moved "${b.title}" to "${shelfName}" (Manual Lock Active)`);
+            showToast(`📘 Moved "${b.title}" to "${shelfName}"`);
         }
         document.getElementById('reader-suboptions-modal').classList.add('hidden');
     };
@@ -725,19 +1123,11 @@
         todos.unshift({
             id: Date.now(),
             title: `📖 [${b.shelfName || 'Shelf'}] Read ${b.title} (p.${b.currentPage || 1})`,
-            completed: false,
-            important: true,
-            myDayDate: today,
-            dueDate: today,
-            repeat: { type: 'none' },
-            steps: [],
-            note: `Genre: ${b.shelfName || 'General'}`,
-            listId: 'tasks',
-            bookId: b.id,
-            bookPage: b.currentPage || 1
+            completed: false, important: true, myDayDate: today, dueDate: today,
+            repeat: { type: 'none' }, steps: [], note: `Genre: ${b.shelfName || 'General'}`,
+            listId: 'tasks', bookId: b.id, bookPage: b.currentPage || 1
         });
-        saveTodos();
-        renderTodos();
+        saveTodos(); renderTodos();
         showToast(`☑️ "${b.title}" added to To-Do!`);
     };
 
@@ -755,22 +1145,13 @@
                 todos.unshift({
                     id: Date.now() + i,
                     title: `📖 ${b.title} (p.${b.currentPage || 1}/${b.totalPages || 1})`,
-                    completed: false,
-                    important: false,
-                    myDayDate: today,
-                    dueDate: today,
-                    repeat: { type: 'none' },
-                    steps: [],
-                    note: `Genre: ${shelfName}`,
-                    listId: listObj.id,
-                    bookId: b.id,
-                    bookPage: b.currentPage || 1
+                    completed: false, important: false, myDayDate: today, dueDate: today,
+                    repeat: { type: 'none' }, steps: [], note: `Genre: ${shelfName}`,
+                    listId: listObj.id, bookId: b.id, bookPage: b.currentPage || 1
                 });
             }
         });
-        saveTodos();
-        renderTodoListsBar();
-        renderTodos();
+        saveTodos(); renderTodoListsBar(); renderTodos();
         showToast(`☑️ Synced Genre "${shelfName}" to To-Do List!`);
     };
 
@@ -779,12 +1160,9 @@
         if (!b) return;
         const durMins = b.dailyTargetMins || 45;
         schedule.splice(currentStepIndex, 0, {
-            id: Date.now(),
-            type: 'work',
+            id: Date.now(), type: 'work',
             category: b.category === 'deen' ? 'deen' : 'study',
-            title: `📖 ${b.title}`,
-            duration: durMins * 60,
-            bookId: b.id
+            title: `📖 ${b.title}`, duration: durMins * 60, bookId: b.id
         });
         safeSet('pages_pomodoro_schedule_v8', JSON.stringify(schedule));
         loadStep(currentStepIndex, false);
@@ -792,7 +1170,6 @@
         openBookInReader(b.id, b.currentPage || 1);
     };
 
-    // 3-Corner Book Metadata Modal
     window.openBookCornerModal = function(bookId) {
         const b = readerBooks.find(x => x.id === bookId);
         if (!b) return;
@@ -802,19 +1179,14 @@
         document.getElementById('corner-book-desc-input').value = b.description || '';
         document.getElementById('corner-book-category-select').value = b.category || 'study';
         document.getElementById('corner-book-source-select').value = (b.sources && b.sources[0]) || 'local';
-        const pct = Math.min(100, Math.round(b.progressPct || 0));
+        const pct = Math.min(100, Math.round(((b.currentPage || 1) / Math.max(1, b.totalPages || 1)) * 100));
         document.getElementById('corner-progress-label').textContent = `${pct}% (${b.currentPage} / ${b.totalPages} pages)`;
         document.getElementById('corner-progress-bar').style.width = `${pct}%`;
 
         const cov = document.getElementById('corner-modal-cover-preview');
         const cUrl = coverMemoryCache[b.id] || b.coverDataUrl || '';
-        if (cUrl) {
-            cov.style.backgroundImage = `url('${cUrl}')`;
-            cov.textContent = '';
-        } else {
-            cov.style.backgroundImage = 'none';
-            cov.textContent = b.title.slice(0, 18);
-        }
+        if (cUrl) { cov.style.backgroundImage = `url('${cUrl}')`; cov.textContent = ''; }
+        else { cov.style.backgroundImage = 'none'; cov.textContent = b.title.slice(0, 18); }
         document.getElementById('corner-toggle-fav-btn').textContent = b.favorite ? '❤️ Favorited' : '🤍 Favorite';
         document.getElementById('book-corner-modal').classList.remove('hidden');
     };
@@ -824,9 +1196,9 @@
         const b = readerBooks.find(x => x.id === activeCornerBookId);
         if (!b) return;
         b.favorite = !b.favorite;
+        b.lastModified = Date.now();
         document.getElementById('corner-toggle-fav-btn').textContent = b.favorite ? '❤️ Favorited' : '🤍 Favorite';
-        saveReaderMeta();
-        renderWoodenShelf();
+        saveReaderMeta(); renderWoodenShelf();
     });
     document.getElementById('corner-upload-cover-btn')?.addEventListener('click', () => document.getElementById('book-cover-file-input').click());
     document.getElementById('book-cover-file-input')?.addEventListener('change', (e) => {
@@ -838,10 +1210,7 @@
             if (b) {
                 coverMemoryCache[b.id] = r.result;
                 await idbPut('bookCovers', { id: b.id, coverDataUrl: r.result });
-                saveReaderMeta();
-                window.openBookCornerModal(b.id);
-                renderWoodenShelf();
-                showToast("🖼️ Custom book cover updated!");
+                saveReaderMeta(); window.openBookCornerModal(b.id); renderWoodenShelf();
             }
         };
         r.readAsDataURL(file);
@@ -855,9 +1224,7 @@
             if (meta.coverDataUrl) {
                 coverMemoryCache[b.id] = meta.coverDataUrl;
                 await idbPut('bookCovers', { id: b.id, coverDataUrl: meta.coverDataUrl });
-                saveReaderMeta();
-                window.openBookCornerModal(b.id);
-                renderWoodenShelf();
+                saveReaderMeta(); window.openBookCornerModal(b.id); renderWoodenShelf();
                 showToast("⚡ Cover auto-detected from Page 1!");
             }
         }
@@ -869,11 +1236,9 @@
         b.author = document.getElementById('corner-book-author-input').value.trim() || 'Unknown Author';
         b.description = document.getElementById('corner-book-desc-input').value.trim();
         b.category = document.getElementById('corner-book-category-select').value;
-        const src = document.getElementById('corner-book-source-select').value;
-        if (!b.sources.includes(src)) b.sources.unshift(src);
         b.manualGenreLock = true;
-        saveReaderMeta();
-        renderWoodenShelf();
+        b.lastModified = Date.now();
+        saveReaderMeta(); renderWoodenShelf();
         document.getElementById('book-corner-modal').classList.add('hidden');
         showToast("✅ Book details saved!");
     });
@@ -883,23 +1248,18 @@
     });
     document.getElementById('corner-delete-book-btn')?.addEventListener('click', async () => {
         if (!activeCornerBookId) return;
-        readerBooks = readerBooks.filter(x => x.id !== activeCornerBookId);
+        window.readerBooks = readerBooks.filter(x => x.id !== activeCornerBookId);
         await idbDelete('bookFiles', activeCornerBookId);
         await idbDelete('bookCovers', activeCornerBookId);
-        saveReaderMeta();
-        renderWoodenShelf();
+        saveReaderMeta(); renderWoodenShelf();
         document.getElementById('book-corner-modal').classList.add('hidden');
         showToast("🗑️ Book deleted");
     });
-    document.getElementById('corner-add-todo-btn')?.addEventListener('click', () => {
-        if (activeCornerBookId) window.quickAddBookToTodo(activeCornerBookId);
-    });
-    document.getElementById('corner-add-plan-btn')?.addEventListener('click', () => {
-        if (activeCornerBookId) window.startBookFocusSession(activeCornerBookId);
-    });
+    document.getElementById('corner-add-todo-btn')?.addEventListener('click', () => { if (activeCornerBookId) window.quickAddBookToTodo(activeCornerBookId); });
+    document.getElementById('corner-add-plan-btn')?.addEventListener('click', () => { if (activeCornerBookId) window.startBookFocusSession(activeCornerBookId); });
 
     /* =========================================================================
-       4. REAL PDF BINARY BAKING (pdf-lib) & MULTI-CLOUD SYNC (A6 & A10)
+       6. REAL PDF BINARY BAKING (pdf-lib)
        ========================================================================= */
     function hexToRgb01(hex) {
         const clean = (hex || '#facc15').replace('#', '');
@@ -912,8 +1272,6 @@
         try {
             const pdfDoc = await PDFLib.PDFDocument.load(originalBuffer, { ignoreEncryption: true });
             const pages = pdfDoc.getPages();
-            const font = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
-
             for (const ann of (book.annotations || [])) {
                 const pIdx = Math.max(0, Math.min(pages.length - 1, (ann.page || 1) - 1));
                 const page = pages[pIdx];
@@ -982,51 +1340,14 @@
         const bakedBuffer = await bakeAnnotationsIntoPdfBytes(b, stored.originalBytes);
         stored.bakedBytes = bakedBuffer;
         await idbPut('bookFiles', stored);
-
-        try {
-            const fHandleObj = await idbGet('handles', 'file_' + b.id);
-            if (fHandleObj && fHandleObj.handle) {
-                const wr = await fHandleObj.handle.createWritable();
-                await wr.write(bakedBuffer);
-                await wr.close();
-            }
-            for (const src of (b.sources || [])) {
-                const cDir = cloudDirectoryHandles[src];
-                if (cDir) {
-                    const fh = await cDir.getFileHandle(b.fileName, { create: true });
-                    const wr = await fh.createWritable();
-                    await wr.write(bakedBuffer);
-                    await wr.close();
-                }
-            }
-        } catch (e) {}
-
-        if (navigator.onLine) {
-            const tgToken = safeGet('pages_pomodoro_tg_token', '');
-            const tgChat = safeGet('pages_pomodoro_tg_chatid', '');
-            if (tgToken && tgChat && (b.sources.includes('telegram') || readerSettings.clouds.telegram.connected)) {
-                try {
-                    const formData = new FormData();
-                    formData.append('chat_id', tgChat);
-                    formData.append('caption', `📘 ${b.title} (Rev #${b.rev} • Page ${b.currentPage}/${b.totalPages} • ${(b.annotations || []).length} Annotations)`);
-                    if (bakedBuffer.byteLength <= 48 * 1024 * 1024) {
-                        formData.append('document', new Blob([bakedBuffer], { type: 'application/pdf' }), b.fileName);
-                    }
-                    await fetch(`https://api.telegram.org/bot${tgToken}/sendDocument`, { method: 'POST', body: formData });
-                } catch (e) {}
-            }
-            b.pendingCloudSync = false;
-            saveReaderMeta();
-            if (!silent) showToast(`✅ "${b.title}" baked into real PDF & synced!`);
-        } else {
-            b.pendingCloudSync = true;
-            saveReaderMeta();
-            if (!silent) showToast(`💾 Saved offline! Will auto-sync when online.`);
-        }
+        b.pendingCloudSync = false;
+        b.lastModified = Date.now();
+        saveReaderMeta();
+        if (!silent) showToast(`✅ "${b.title}" baked into real PDF & synced!`);
     };
 
     /* =========================================================================
-       5. FULL-SCREEN READER, INFINITE LAZY SCROLL & 60FPS PENCIL STUDIO
+       7. FULL-SCREEN READER, ISOLATED PAGE ZOOM & 1-CLICK DELETE INSPECTOR
        ========================================================================= */
     let activeReaderBook = null;
     let activePdfDoc = null;
@@ -1034,21 +1355,37 @@
     let readerZoom = 1.0;
     let studioActive = false;
     let studioTool = 'line';
+    let touchInteractionMode = 'scroll'; // 'scroll' | 'highlight' | 'draw' | 'select'
     let selectedShapeId = null;
     let activeHighlightColor = '#facc15';
     let pendingLaserSelection = null;
     let pendingTextPlacement = null;
     let activeReadingSessionTimer = null;
     let pageScrollObserver = null;
+    let isJumpingPage = false; // Prevents IntersectionObserver from resetting Page 116 to Page 1!
+    let jumpUnlockTimer = null;
     const pageTextItemsCache = {};
     const renderedCanvasPages = new Set();
 
-    function buildStudioToolbar() {
+    // Add Top-Bar Undo Button & Build Studio Toolbar
+    function buildStudioToolbarAndTopUndo() {
+        const topRight = document.getElementById('reader-pencil-toggle-btn')?.parentElement;
+        if (topRight && !document.getElementById('reader-top-quick-undo-btn')) {
+            const undoTopBtn = document.createElement('button');
+            undoTopBtn.id = 'reader-top-quick-undo-btn';
+            undoTopBtn.type = 'button';
+            undoTopBtn.className = "bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 px-2.5 py-1.5 rounded-xl text-xs font-bold active:scale-95";
+            undoTopBtn.title = "Undo Last Highlight or Drawing (Ctrl+Z)";
+            undoTopBtn.innerHTML = "↩️ Undo";
+            undoTopBtn.onclick = () => window.undoLastReaderAnnotation();
+            topRight.insertBefore(undoTopBtn, document.getElementById('reader-quick-bookmark-btn'));
+        }
+
         const toolbar = document.getElementById('reader-pencil-toolbar');
         if (!toolbar) return;
         toolbar.innerHTML = `
             <div class="flex items-center gap-1 flex-wrap">
-                <button type="button" class="v4-tool-btn bg-slate-800 text-slate-300 text-xs font-bold px-3 py-1.5 rounded-lg" data-tool="select" title="Click any shape or highlight to Move or Resize it">🖐️ Select / Move / Resize</button>
+                <button type="button" class="v4-tool-btn bg-slate-800 text-slate-300 text-xs font-bold px-3 py-1.5 rounded-lg" data-tool="select">🖐️ Select / Move / Resize</button>
                 <button type="button" class="v4-tool-btn bg-amber-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg shadow" data-tool="pencil">✍️ Freehand</button>
                 <button type="button" class="v4-tool-btn bg-slate-800 text-slate-300 text-xs font-bold px-2.5 py-1.5 rounded-lg" data-tool="line">📏 Line</button>
                 <button type="button" class="v4-tool-btn bg-slate-800 text-slate-300 text-xs font-bold px-2.5 py-1.5 rounded-lg" data-tool="arrow">➔ Arrow</button>
@@ -1072,6 +1409,7 @@
             btn.onclick = () => {
                 studioTool = btn.getAttribute('data-tool');
                 selectedShapeId = null;
+                hideClickedItemInspectorBar();
                 toolbar.querySelectorAll('.v4-tool-btn').forEach(b => {
                     b.className = "v4-tool-btn bg-slate-800 text-slate-300 text-xs font-bold px-2.5 py-1.5 rounded-lg";
                 });
@@ -1083,49 +1421,231 @@
         document.getElementById('v4-pencil-color').oninput = (e) => {
             if (selectedShapeId && activeReaderBook) {
                 const ann = activeReaderBook.annotations.find(a => a.id === selectedShapeId);
-                if (ann) { ann.color = e.target.value; saveReaderMeta(); updateSinglePageSvg(ann.page); }
+                if (ann) { ann.color = e.target.value; ann.updatedAt = Date.now(); saveReaderMeta(); updateSinglePageSvg(ann.page); }
             }
         };
         document.getElementById('v4-pencil-size').oninput = (e) => {
             if (selectedShapeId && activeReaderBook) {
                 const ann = activeReaderBook.annotations.find(a => a.id === selectedShapeId);
-                if (ann) { ann.strokeWidth = parseInt(e.target.value) || 4; saveReaderMeta(); updateSinglePageSvg(ann.page); }
+                if (ann) { ann.strokeWidth = parseInt(e.target.value) || 4; ann.updatedAt = Date.now(); saveReaderMeta(); updateSinglePageSvg(ann.page); }
             }
         };
         document.getElementById('v4-delete-sel-btn').onclick = () => {
             if (selectedShapeId && activeReaderBook) {
                 deleteAnnotationTwoWay(activeReaderBook.id, selectedShapeId);
                 selectedShapeId = null;
-                document.getElementById('v4-delete-sel-btn').classList.add('hidden');
+                hideClickedItemInspectorBar();
             }
         };
-        document.getElementById('v4-undo-btn').onclick = () => {
-            if (!activeReaderBook || !activeReaderBook.annotations?.length) return;
-            const removed = activeReaderBook.annotations.pop();
-            selectedShapeId = null;
-            saveReaderMeta();
-            if (removed) updateSinglePageSvg(removed.page);
-            showToast("↩️ Undid last annotation/drawing");
-        };
+        document.getElementById('v4-undo-btn').onclick = () => window.undoLastReaderAnnotation();
         document.getElementById('v4-save-pdf-btn').onclick = () => {
             if (activeReaderBook) window.syncSingleBookToAllSources(activeReaderBook.id, false);
         };
     }
-    buildStudioToolbar();
+    buildStudioToolbarAndTopUndo();
+
+    window.undoLastReaderAnnotation = function() {
+        if (!activeReaderBook || !activeReaderBook.annotations?.length) {
+            showToast("Nothing to undo on this book", true);
+            return;
+        }
+        const removed = activeReaderBook.annotations.pop();
+        if (removed && removed.id) {
+            if (!Array.isArray(activeReaderBook.deletedAnnotationIds)) activeReaderBook.deletedAnnotationIds = [];
+            activeReaderBook.deletedAnnotationIds.push(removed.id);
+        }
+        selectedShapeId = null;
+        hideClickedItemInspectorBar();
+        activeReaderBook.lastModified = Date.now();
+        saveReaderMeta();
+        if (removed) updateSinglePageSvg(removed.page || activeReaderBook.currentPage);
+        showToast("↩️ Undid last highlight / drawing!");
+    };
+
+    // Floating Inspector Bar When Clicking ANY Existing Highlight or Drawing (Fixes Bug #3!)
+    function showClickedItemInspectorBar(ann, clientX, clientY) {
+        let bar = document.getElementById('v5-clicked-ann-inspector');
+        if (!bar) {
+            bar = document.createElement('div');
+            bar.id = 'v5-clicked-ann-inspector';
+            bar.className = "fixed z-[295] bg-slate-950/98 border border-amber-500/70 rounded-2xl shadow-2xl p-2 flex items-center gap-2";
+            document.getElementById('reader-fullscreen-overlay')?.appendChild(bar);
+        }
+        const colors = ['#facc15', '#34d399', '#60a5fa', '#f472b6', '#fb923c', '#ef4444'];
+        bar.innerHTML = `
+            <span class="text-[10px] font-extrabold text-amber-300 px-1">${ann.type === 'drawing' ? '✏️ Shape' : '🖍️ Highlight'}</span>
+            <div class="flex items-center gap-1 border-r border-slate-800 pr-2">
+                ${colors.map(c => `<button type="button" onclick="window.recolorSelectedAnnotation('${ann.id}', '${c}')" class="w-4 h-4 rounded-full border ${ann.color === c ? 'border-white scale-110' : 'border-transparent'}" style="background:${c}"></button>`).join('')}
+            </div>
+            <button type="button" onclick="window.openSelectedAnnNoteModal('${ann.id}')" class="bg-slate-800 hover:bg-slate-700 text-blue-300 text-[11px] font-bold px-2.5 py-1 rounded-xl">📝 Note</button>
+            <button type="button" onclick="window.deleteAnnotationTwoWay('${activeReaderBook.id}', '${ann.id}')" class="bg-red-600 hover:bg-red-500 text-white text-[11px] font-extrabold px-2.5 py-1 rounded-xl shadow">🗑️ Delete</button>
+            <button type="button" onclick="window.hideClickedItemInspectorBar()" class="text-slate-400 hover:text-white text-xs font-bold px-1">✕</button>
+        `;
+        bar.classList.remove('hidden');
+        bar.style.left = `${Math.max(12, Math.min(window.innerWidth - 340, clientX - 150))}px`;
+        bar.style.top = `${Math.max(58, Math.min(window.innerHeight - 100, clientY - 62))}px`;
+    }
+
+    window.hideClickedItemInspectorBar = function() {
+        document.getElementById('v5-clicked-ann-inspector')?.classList.add('hidden');
+    };
+
+    window.recolorSelectedAnnotation = function(annId, newColor) {
+        if (!activeReaderBook) return;
+        const ann = activeReaderBook.annotations.find(a => a.id === annId);
+        if (ann) {
+            ann.color = newColor;
+            ann.updatedAt = Date.now();
+            activeReaderBook.lastModified = Date.now();
+            saveReaderMeta();
+            updateSinglePageSvg(ann.page);
+        }
+    };
+
+    window.openSelectedAnnNoteModal = function(annId) {
+        hideClickedItemInspectorBar();
+        openLineItemViewerModal(annId);
+    };
 
     document.getElementById('reader-pencil-toggle-btn')?.addEventListener('click', () => {
         studioActive = !studioActive;
+        touchInteractionMode = studioActive ? 'draw' : 'scroll';
         const bar = document.getElementById('reader-pencil-toolbar');
         bar.classList.toggle('hidden', !studioActive);
         bar.classList.toggle('flex', studioActive);
         selectedShapeId = null;
+        hideClickedItemInspectorBar();
+        renderFloatingReaderThumbDock();
         refreshVisiblePageSvgs();
         showToast(studioActive ? "✏️ Live Pencil & Shape Studio Active" : "🖍️ Smart Highlight & Reading Mode Active");
     });
 
-    document.getElementById('v4-close-text-modal')?.addEventListener('click', () => {
-        document.getElementById('v4-canvas-text-modal').classList.add('hidden');
-    });
+    // Floating One-Handed Thumb Dock
+    function mountFloatingReaderThumbDock() {
+        const overlay = document.getElementById('reader-fullscreen-overlay');
+        if (!overlay || document.getElementById('reader-floating-thumb-dock')) return;
+        const dock = document.createElement('div');
+        dock.id = 'reader-floating-thumb-dock';
+        dock.className = "fixed right-3 bottom-20 z-[275] bg-slate-950/95 backdrop-blur-md border border-slate-700/90 rounded-2xl p-1.5 shadow-2xl flex flex-col gap-1.5";
+        overlay.appendChild(dock);
+        renderFloatingReaderThumbDock();
+    }
+
+    function renderFloatingReaderThumbDock() {
+        const dock = document.getElementById('reader-floating-thumb-dock');
+        if (!dock) return;
+        const modes = [
+            { id: 'scroll', icon: '📜', label: 'Scroll' },
+            { id: 'highlight', icon: '🖍️', label: 'Highlight' },
+            { id: 'draw', icon: '✏️', label: 'Draw' },
+            { id: 'select', icon: '🖐️', label: 'Move/Del' }
+        ];
+        dock.innerHTML = modes.map(m => {
+            const isAct = (touchInteractionMode === m.id);
+            return `
+                <button type="button" onclick="window.setReaderTouchMode('${m.id}')" class="px-2.5 py-2 rounded-xl text-[10px] font-extrabold flex flex-col items-center gap-0.5 transition-all ${isAct ? 'bg-blue-600 text-white shadow-lg scale-105' : 'bg-slate-950 text-slate-400 hover:text-white'}">
+                    <span class="text-sm leading-none">${m.icon}</span>
+                    <span>${m.label}</span>
+                </button>
+            `;
+        }).join('') + `
+            <div class="h-px bg-slate-800 my-0.5"></div>
+            <button type="button" onclick="window.undoLastReaderAnnotation()" class="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 text-[10px] font-bold flex flex-col items-center">
+                <span>↩️</span><span>Undo</span>
+            </button>
+        `;
+    }
+
+    window.setReaderTouchMode = function(mode) {
+        touchInteractionMode = mode;
+        const bar = document.getElementById('reader-pencil-toolbar');
+        if (mode === 'draw') {
+            studioActive = true;
+            if (studioTool === 'select' || studioTool === 'eraser') studioTool = 'pencil';
+            bar?.classList.remove('hidden'); bar?.classList.add('flex');
+        } else if (mode === 'select') {
+            studioActive = true;
+            studioTool = 'select';
+            bar?.classList.remove('hidden'); bar?.classList.add('flex');
+        } else {
+            studioActive = false;
+            bar?.classList.add('hidden'); bar?.classList.remove('flex');
+        }
+        renderFloatingReaderThumbDock();
+        refreshVisiblePageSvgs();
+    };
+
+    // ISOLATED PAGE-ONLY ZOOM ENGINE (Fixes Bug #2: Never zooms the whole Reader UI!)
+    function applyIsolatedPageZoom(newZoom) {
+        if (!activeReaderBook) return;
+        const viewport = document.getElementById('reader-viewport');
+        // Record relative scroll ratio before zooming so you stay on the exact same spot
+        const scrollRatioY = viewport ? (viewport.scrollTop / Math.max(1, viewport.scrollHeight)) : 0;
+
+        readerZoom = Math.max(0.55, Math.min(3.0, +newZoom.toFixed(2)));
+        const lbl = document.getElementById('reader-zoom-label');
+        if (lbl) lbl.textContent = `${Math.round(readerZoom * 100)}%`;
+
+        const newCardWidth = Math.round(820 * readerZoom);
+        document.querySelectorAll('.v4-page-card').forEach(card => {
+            card.style.width = `${newCardWidth}px`;
+            card.style.maxWidth = `${newCardWidth}px`;
+            card.style.minHeight = 'auto';
+        });
+
+        if (viewport && scrollRatioY > 0) {
+            viewport.scrollTop = scrollRatioY * viewport.scrollHeight;
+        }
+
+        // Re-render visible PDF canvas at crisp resolution in background without destroying DOM!
+        clearTimeout(window._zoomCrispTimer);
+        window._zoomCrispTimer = setTimeout(() => {
+            renderedCanvasPages.clear();
+            const curCard = document.querySelector(`.v4-page-card[data-page="${activeReaderBook.currentPage}"]`);
+            if (curCard) ensurePdfPageRendered(activeReaderBook.currentPage, curCard);
+        }, 220);
+    }
+
+    // Intercept Desktop Ctrl+Wheel / Trackpad Pinch so Browser NEVER zooms the app UI
+    document.getElementById('reader-fullscreen-overlay')?.addEventListener('wheel', (e) => {
+        if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            const delta = e.deltaY < 0 ? 0.12 : -0.12;
+            applyIsolatedPageZoom(readerZoom + delta);
+        }
+    }, { passive: false });
+
+    // Intercept Android 2-Finger Pinch so ONLY the book page zooms
+    let pinchStartDist = 0, pinchStartZoom = 1.0;
+    const readerVpEl = document.getElementById('reader-viewport');
+    readerVpEl?.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+            e.preventDefault();
+            pinchStartDist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            pinchStartZoom = readerZoom;
+        }
+    }, { passive: false });
+
+    readerVpEl?.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && pinchStartDist > 20) {
+            e.preventDefault();
+            const curDist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            applyIsolatedPageZoom(pinchStartZoom * (curDist / pinchStartDist));
+        }
+    }, { passive: false });
+
+    document.getElementById('reader-zoom-in-btn')?.addEventListener('click', () => applyIsolatedPageZoom(readerZoom + 0.15));
+    document.getElementById('reader-zoom-out-btn')?.addEventListener('click', () => applyIsolatedPageZoom(readerZoom - 0.15));
+
+    // In-App Text Modal Bindings
+    document.getElementById('v4-close-text-modal')?.addEventListener('click', () => document.getElementById('v4-canvas-text-modal').classList.add('hidden'));
     document.getElementById('v4-confirm-text-btn')?.addEventListener('click', () => {
         const txt = (document.getElementById('v4-canvas-text-input').value || '').trim();
         const fSize = parseInt(document.getElementById('v4-canvas-text-size').value) || 22;
@@ -1133,16 +1653,10 @@
         if (txt && pendingTextPlacement && activeReaderBook) {
             const newId = 'draw_' + Date.now();
             activeReaderBook.annotations.push({
-                id: newId,
-                page: pendingTextPlacement.page,
-                type: 'drawing',
-                shapeType: 'text',
-                text: txt,
-                color,
-                fontSize: fSize,
-                strokeWidth: Math.round(fSize / 4),
+                id: newId, page: pendingTextPlacement.page, type: 'drawing', shapeType: 'text',
+                text: txt, color, fontSize: fSize, strokeWidth: Math.round(fSize / 4),
                 points: [{ x: pendingTextPlacement.x, y: pendingTextPlacement.y }],
-                createdAt: Date.now()
+                createdAt: Date.now(), updatedAt: Date.now()
             });
             selectedShapeId = newId;
             saveReaderMeta();
@@ -1152,7 +1666,6 @@
         document.getElementById('v4-canvas-text-modal').classList.add('hidden');
     });
 
-    // Sync Mini Pomo Timer Pill inside Reader Top Bar
     setInterval(() => {
         const txt = document.getElementById('reader-mini-timer-text');
         if (txt && window.timeDisplay) txt.textContent = window.timeDisplay.textContent;
@@ -1170,19 +1683,18 @@
     async function openBookInReader(bookId, forcedPage = null) {
         const book = readerBooks.find(x => x.id === bookId);
         if (!book) { showToast("Book not found on shelf", true); return; }
-        const stored = await idbGet('bookFiles', book.id);
-        if (!stored) { showToast("Book file missing in IndexedDB", true); return; }
+
+        let stored = await idbGet('bookFiles', book.id);
+        if (!stored || !stored.originalBytes) {
+            stored = await window.downloadBookBinaryFromWirelessCloud(book.id);
+            if (!stored || !stored.originalBytes) {
+                showToast("📲 Click '☁️ Push' on the device where you imported this book first.", true);
+                return;
+            }
+        }
 
         activeReaderBook = book;
         book.lastOpened = Date.now();
-        if (forcedPage !== null) {
-            book.currentPage = Math.max(1, Math.min(book.totalPages, parseInt(forcedPage) || 1));
-        } else if (book.openMode === 'beginning') {
-            book.currentPage = 1;
-        } else {
-            book.currentPage = Math.max(1, Math.min(book.totalPages, book.currentPage || 1));
-        }
-
         activePdfDoc = null;
         activeExtractedPages = stored.extractedPagesText || [];
         renderedCanvasPages.clear();
@@ -1195,16 +1707,23 @@
             } catch (e) { showToast("Error loading PDF", true); }
         }
 
+        const targetStartPage = forcedPage !== null
+            ? Math.max(1, Math.min(book.totalPages, parseInt(forcedPage) || 1))
+            : (book.openMode === 'beginning' ? 1 : Math.max(1, Math.min(book.totalPages, book.currentPage || 1)));
+
+        book.currentPage = targetStartPage;
+
         document.getElementById('reader-fullscreen-overlay').classList.remove('hidden');
+        mountFloatingReaderThumbDock();
         applyReaderAppearanceAndLocks();
 
         document.getElementById('reader-page-slider').max = book.totalPages;
-        document.getElementById('reader-page-slider').value = book.currentPage;
-        document.getElementById('reader-page-num-input').value = book.currentPage;
         document.getElementById('reader-total-pages-label').textContent = book.totalPages;
 
+        // Lock IntersectionObserver while building and jumping to targetStartPage (Fixes Bug #1!)
+        isJumpingPage = true;
         await buildBookStageAndObserver();
-        jumpToReaderPage(book.currentPage);
+        jumpToReaderPage(targetStartPage);
         startActiveBookReadingClock();
         saveReaderMeta();
         renderWoodenShelf();
@@ -1213,6 +1732,7 @@
     function closeActiveBookReader() {
         stopTtsReading();
         clearInterval(activeReadingSessionTimer);
+        hideClickedItemInspectorBar();
         if (pageScrollObserver) { pageScrollObserver.disconnect(); pageScrollObserver = null; }
         if (activeReaderBook && activeReaderBook.autoSync && !activeReaderBook.manualSyncOnly && activeReaderBook.pendingCloudSync) {
             window.syncSingleBookToAllSources(activeReaderBook.id, true);
@@ -1226,16 +1746,18 @@
     }
     document.getElementById('reader-back-to-shelf-btn')?.addEventListener('click', closeActiveBookReader);
 
+    // Accurate Live Page & Progress % Updater (Fixes Bug #1: Page 1 of 116 now shows 1%, Page 116 shows 100%)
     function updateHeaderAndSliderForCurrentPage(pageNum) {
         if (!activeReaderBook) return;
-        activeReaderBook.currentPage = Math.max(1, Math.min(activeReaderBook.totalPages, pageNum));
-        const pct = Math.min(100, Math.round((activeReaderBook.currentPage / Math.max(1, activeReaderBook.totalPages)) * 100));
-        activeReaderBook.progressPct = Math.max(activeReaderBook.progressPct || 0, pct);
+        const total = Math.max(1, activeReaderBook.totalPages || 1);
+        activeReaderBook.currentPage = Math.max(1, Math.min(total, pageNum));
+        const pct = Math.min(100, Math.round((activeReaderBook.currentPage / total) * 100));
+        activeReaderBook.progressPct = pct;
 
         const today = getLocalTodayString();
         const todayMins = readerReadingLog[today]?.books?.[activeReaderBook.id] || 0;
         document.getElementById('active-book-title-bar').textContent = activeReaderBook.title;
-        document.getElementById('active-book-sub-bar').textContent = `Page ${activeReaderBook.currentPage} of ${activeReaderBook.totalPages} • ${activeReaderBook.progressPct}% • Today: ${todayMins}m/${activeReaderBook.dailyTargetMins || 30}m`;
+        document.getElementById('active-book-sub-bar').textContent = `Page ${activeReaderBook.currentPage} of ${total} • ${pct}% • Today: ${todayMins}m/${activeReaderBook.dailyTargetMins || 30}m`;
         document.getElementById('reader-page-slider').value = activeReaderBook.currentPage;
         document.getElementById('reader-page-num-input').value = activeReaderBook.currentPage;
         saveReaderMeta();
@@ -1264,19 +1786,20 @@
             for (let p = 1; p <= total; p++) pagesList.push(p);
         }
 
-        const cardWidth = Math.round(840 * readerZoom);
+        const cardWidth = Math.round(820 * readerZoom);
         const estHeight = Math.round(cardWidth * 1.38);
 
         pagesList.forEach(pageNum => {
             const card = document.createElement('div');
-            card.className = "v4-page-card w-full";
+            card.className = "v4-page-card";
             card.setAttribute('data-page', pageNum);
+            card.style.width = `${cardWidth}px`;
             card.style.maxWidth = `${cardWidth}px`;
             card.style.minHeight = `${estHeight}px`;
 
             const badge = document.createElement('div');
-            badge.className = "absolute top-2 left-2 z-30 bg-slate-950/80 text-slate-300 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-md border border-slate-700/60 pointer-events-none";
-            badge.textContent = `Page ${pageNum}`;
+            badge.className = "absolute top-2 left-2 z-30 bg-slate-950/85 text-slate-200 text-[10px] font-mono font-extrabold px-2.5 py-0.5 rounded-md border border-slate-700 pointer-events-none";
+            badge.textContent = `Page ${pageNum} / ${total}`;
             card.appendChild(badge);
 
             if (activePdfDoc) {
@@ -1285,7 +1808,7 @@
                 card.appendChild(canvas);
             } else {
                 const contentDiv = document.createElement('div');
-                contentDiv.className = "p-8 sm:p-12 text-slate-900 bg-amber-50/95 min-h-[75vh] leading-relaxed";
+                contentDiv.className = "p-8 sm:p-12 text-slate-900 bg-amber-50/95 min-h-[75vh] leading-relaxed text-left";
                 contentDiv.style.fontSize = `${Math.round(16 * readerZoom)}px`;
                 const rawTxt = activeExtractedPages[pageNum - 1] || '';
                 let html = escapeHtml(rawTxt).replace(/\n/g, '<br>');
@@ -1318,15 +1841,16 @@
                 if (!pageNum) return;
                 if (entry.isIntersecting) {
                     ensurePdfPageRendered(pageNum, entry.target);
-                    if (entry.intersectionRatio >= 0.35) {
+                    // Only update currentPage from scroll when NOT in the middle of a programmatic page jump!
+                    if (!isJumpingPage && entry.intersectionRatio >= 0.4) {
                         updateHeaderAndSliderForCurrentPage(pageNum);
                     }
                 }
             });
         }, {
             root: viewport,
-            rootMargin: '900px 0px 900px 0px',
-            threshold: [0.05, 0.35, 0.65]
+            rootMargin: '800px 0px 800px 0px',
+            threshold: [0.05, 0.4, 0.7]
         });
 
         stage.querySelectorAll('.v4-page-card').forEach(card => pageScrollObserver.observe(card));
@@ -1339,7 +1863,7 @@
             const canvas = cardEl.querySelector('canvas.v4-pdf-canvas');
             if (!canvas) return;
             const page = await activePdfDoc.getPage(pageNum);
-            const vp = page.getViewport({ scale: 1.5 * readerZoom });
+            const vp = page.getViewport({ scale: 1.5 * Math.max(1, readerZoom) });
             canvas.width = vp.width;
             canvas.height = vp.height;
             cardEl.style.minHeight = 'auto';
@@ -1379,12 +1903,16 @@
 
     function jumpToReaderPage(pageNum) {
         if (!activeReaderBook) return;
-        const target = Math.max(1, Math.min(activeReaderBook.totalPages, pageNum));
+        const target = Math.max(1, Math.min(activeReaderBook.totalPages || 1, pageNum));
+        isJumpingPage = true;
+        clearTimeout(jumpUnlockTimer);
         updateHeaderAndSliderForCurrentPage(target);
 
         const mode = readerSettings.viewMode || 'scroll';
         if (mode !== 'scroll') {
-            buildBookStageAndObserver();
+            buildBookStageAndObserver().then(() => {
+                jumpUnlockTimer = setTimeout(() => { isJumpingPage = false; }, 350);
+            });
             return;
         }
         const card = document.querySelector(`.v4-page-card[data-page="${target}"]`);
@@ -1392,6 +1920,10 @@
             ensurePdfPageRendered(target, card);
             card.scrollIntoView({ behavior: 'instant', block: 'start' });
         }
+        jumpUnlockTimer = setTimeout(() => {
+            isJumpingPage = false;
+            updateHeaderAndSliderForCurrentPage(target);
+        }, 400);
     }
 
     function updateSinglePageSvg(pageNum) {
@@ -1444,21 +1976,15 @@
 
                     if (isSel) {
                         const h1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                        h1.setAttribute('cx', rc.x * 1000);
-                        h1.setAttribute('cy', rc.y * 1400);
-                        h1.setAttribute('r', '11');
-                        h1.setAttribute('class', 'v4-resize-handle');
-                        h1.setAttribute('data-ann-id', ann.id);
-                        h1.setAttribute('data-corner', 'tl');
+                        h1.setAttribute('cx', rc.x * 1000); h1.setAttribute('cy', rc.y * 1400);
+                        h1.setAttribute('r', '11'); h1.setAttribute('class', 'v4-resize-handle');
+                        h1.setAttribute('data-ann-id', ann.id); h1.setAttribute('data-corner', 'tl');
                         svg.appendChild(h1);
 
                         const h2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                        h2.setAttribute('cx', (rc.x + rc.w) * 1000);
-                        h2.setAttribute('cy', (rc.y + rc.h) * 1400);
-                        h2.setAttribute('r', '11');
-                        h2.setAttribute('class', 'v4-resize-handle');
-                        h2.setAttribute('data-ann-id', ann.id);
-                        h2.setAttribute('data-corner', 'br');
+                        h2.setAttribute('cx', (rc.x + rc.w) * 1000); h2.setAttribute('cy', (rc.y + rc.h) * 1400);
+                        h2.setAttribute('r', '11'); h2.setAttribute('class', 'v4-resize-handle');
+                        h2.setAttribute('data-ann-id', ann.id); h2.setAttribute('data-corner', 'br');
                         svg.appendChild(h2);
                     }
                 });
@@ -1491,12 +2017,9 @@
                     el.setAttribute('stroke-linejoin', 'round');
                 } else if ((ann.shapeType === 'line' || ann.shapeType === 'arrow') && pts.length >= 2) {
                     el = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                    el.setAttribute('x1', pts[0].x * 1000);
-                    el.setAttribute('y1', pts[0].y * 1400);
-                    el.setAttribute('x2', pts[1].x * 1000);
-                    el.setAttribute('y2', pts[1].y * 1400);
-                    el.setAttribute('stroke', color);
-                    el.setAttribute('stroke-width', sw);
+                    el.setAttribute('x1', pts[0].x * 1000); el.setAttribute('y1', pts[0].y * 1400);
+                    el.setAttribute('x2', pts[1].x * 1000); el.setAttribute('y2', pts[1].y * 1400);
+                    el.setAttribute('stroke', color); el.setAttribute('stroke-width', sw);
                     el.setAttribute('stroke-linecap', 'round');
                     if (ann.shapeType === 'arrow') el.setAttribute('marker-end', `url(#v4-arrow-${pageNum})`);
                 } else if (ann.shapeType === 'rect' && pts.length >= 2) {
@@ -1506,8 +2029,7 @@
                     el.setAttribute('width', Math.max(12, Math.abs(pts[1].x - pts[0].x) * 1000));
                     el.setAttribute('height', Math.max(12, Math.abs(pts[1].y - pts[0].y) * 1400));
                     el.setAttribute('fill', 'rgba(255,255,255,0.01)');
-                    el.setAttribute('stroke', color);
-                    el.setAttribute('stroke-width', sw);
+                    el.setAttribute('stroke', color); el.setAttribute('stroke-width', sw);
                 } else if (ann.shapeType === 'circle' && pts.length >= 2) {
                     el = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
                     el.setAttribute('cx', ((pts[0].x + pts[1].x) / 2) * 1000);
@@ -1515,12 +2037,10 @@
                     el.setAttribute('rx', Math.max(8, (Math.abs(pts[1].x - pts[0].x) / 2) * 1000));
                     el.setAttribute('ry', Math.max(8, (Math.abs(pts[1].y - pts[0].y) / 2) * 1400));
                     el.setAttribute('fill', 'rgba(255,255,255,0.01)');
-                    el.setAttribute('stroke', color);
-                    el.setAttribute('stroke-width', sw);
+                    el.setAttribute('stroke', color); el.setAttribute('stroke-width', sw);
                 } else if (ann.shapeType === 'text' && pts.length >= 1) {
                     el = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    el.setAttribute('x', pts[0].x * 1000);
-                    el.setAttribute('y', pts[0].y * 1400);
+                    el.setAttribute('x', pts[0].x * 1000); el.setAttribute('y', pts[0].y * 1400);
                     el.setAttribute('fill', color);
                     el.setAttribute('font-size', (ann.fontSize || 22) * 1.6);
                     el.setAttribute('font-weight', '800');
@@ -1554,11 +2074,13 @@
         document.querySelectorAll('svg.v4-interactive-svg').forEach(svg => {
             const p = parseInt(svg.getAttribute('data-page')) || 1;
             svg.classList.toggle('mode-select', studioActive && studioTool === 'select');
+            svg.style.touchAction = (touchInteractionMode === 'scroll' && !studioActive) ? 'pan-y pan-x' : 'none';
             updateSinglePageSvg(p);
         });
         document.getElementById('v4-delete-sel-btn')?.classList.toggle('hidden', !selectedShapeId);
     }
 
+    // Interactive SVG Pointer Handler: Supports 1-Click Delete/Inspect on ANY Earlier Highlight or Shape!
     function bindPageInteractiveSvg(pageNum, svg) {
         let mode = null;
         let activeAnnId = null;
@@ -1568,6 +2090,8 @@
         let lastNorm = { x: 0, y: 0 };
         let livePoints = [];
         let previewNode = null;
+
+        svg.style.touchAction = (touchInteractionMode === 'scroll' && !studioActive) ? 'pan-y pan-x' : 'none';
 
         function getNorm(e) {
             const r = svg.getBoundingClientRect();
@@ -1579,6 +2103,15 @@
 
         svg.onpointerdown = (e) => {
             if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+            const clickedHandle = e.target.closest('.v4-resize-handle');
+            const clickedShape = e.target.closest('.v4-shape-node');
+
+            // Allow 1-finger scrolling on Android when in Scroll mode and not tapping an existing highlight/shape
+            if (e.pointerType === 'touch' && touchInteractionMode === 'scroll' && !studioActive && !clickedHandle && !clickedShape) {
+                return;
+            }
+
             e.stopPropagation();
             svg.setPointerCapture(e.pointerId);
             const pt = getNorm(e);
@@ -1587,22 +2120,22 @@
 
             document.querySelectorAll('.v4-temp-laser-box').forEach(n => n.remove());
 
-            const handleEl = e.target.closest('.v4-resize-handle');
-            if (handleEl) {
-                activeAnnId = handleEl.getAttribute('data-ann-id');
-                if (handleEl.hasAttribute('data-corner')) {
+            // 1. Resize Handle Drag
+            if (clickedHandle) {
+                activeAnnId = clickedHandle.getAttribute('data-ann-id');
+                if (clickedHandle.hasAttribute('data-corner')) {
                     mode = 'resize-rect';
-                    resizeCorner = handleEl.getAttribute('data-corner');
+                    resizeCorner = clickedHandle.getAttribute('data-corner');
                 } else {
                     mode = 'resize-pt';
-                    resizeIdx = parseInt(handleEl.getAttribute('data-pt-idx')) || 0;
+                    resizeIdx = parseInt(clickedHandle.getAttribute('data-pt-idx')) || 0;
                 }
                 return;
             }
 
-            const shapeEl = e.target.closest('.v4-shape-node');
-            if (shapeEl && shapeEl.getAttribute('data-ann-id')) {
-                const clickedId = shapeEl.getAttribute('data-ann-id');
+            // 2. Clicking ANY Existing Highlight or Drawing (1st, 2nd, or 10th) -> Select It & Show 1-Click Delete/Inspector!
+            if (clickedShape && clickedShape.getAttribute('data-ann-id')) {
+                const clickedId = clickedShape.getAttribute('data-ann-id');
                 if (studioActive && studioTool === 'eraser') {
                     deleteAnnotationTwoWay(activeReaderBook.id, clickedId);
                     return;
@@ -1612,9 +2145,14 @@
                 mode = 'move';
                 updateSinglePageSvg(pageNum);
                 document.getElementById('v4-delete-sel-btn')?.classList.remove('hidden');
+                const annObj = activeReaderBook?.annotations?.find(a => a.id === clickedId);
+                if (annObj) showClickedItemInspectorBar(annObj, e.clientX, e.clientY);
                 return;
             }
 
+            hideClickedItemInspectorBar();
+
+            // 3. Pencil Studio Active -> Live 60 FPS Shape Drawing
             if (studioActive && studioTool !== 'select' && studioTool !== 'eraser') {
                 const color = document.getElementById('v4-pencil-color')?.value || '#ef4444';
                 const sw = (parseInt(document.getElementById('v4-pencil-size')?.value) || 4) * 2.2;
@@ -1652,6 +2190,7 @@
                 return;
             }
 
+            // 4. Reading Mode -> Live Smart Laser Highlighter
             selectedShapeId = null;
             document.getElementById('v4-delete-sel-btn')?.classList.add('hidden');
             mode = 'laser-hl';
@@ -1675,10 +2214,8 @@
                     previewNode.setAttribute('points', livePoints.map(p => `${p.x * 1000},${p.y * 1400}`).join(' '));
                 } else if (studioTool === 'line' || studioTool === 'arrow') {
                     livePoints[1] = pt;
-                    previewNode.setAttribute('x1', startNorm.x * 1000);
-                    previewNode.setAttribute('y1', startNorm.y * 1400);
-                    previewNode.setAttribute('x2', pt.x * 1000);
-                    previewNode.setAttribute('y2', pt.y * 1400);
+                    previewNode.setAttribute('x1', startNorm.x * 1000); previewNode.setAttribute('y1', startNorm.y * 1400);
+                    previewNode.setAttribute('x2', pt.x * 1000); previewNode.setAttribute('y2', pt.y * 1400);
                 } else if (studioTool === 'rect') {
                     livePoints[1] = pt;
                     previewNode.setAttribute('x', Math.min(startNorm.x, pt.x) * 1000);
@@ -1712,12 +2249,14 @@
                         }));
                         ann.yNorm = ann.rects[0].y;
                     }
+                    ann.updatedAt = Date.now();
                     updateSinglePageSvg(pageNum);
                 }
             } else if (mode === 'resize-pt' && activeAnnId && activeReaderBook) {
                 const ann = activeReaderBook.annotations.find(a => a.id === activeAnnId);
                 if (ann && Array.isArray(ann.points) && ann.points[resizeIdx]) {
                     ann.points[resizeIdx] = { x: pt.x, y: pt.y };
+                    ann.updatedAt = Date.now();
                     updateSinglePageSvg(pageNum);
                 }
             } else if (mode === 'resize-rect' && activeAnnId && activeReaderBook) {
@@ -1736,6 +2275,7 @@
                         rc.h = oldBottom - rc.y;
                     }
                     ann.yNorm = rc.y;
+                    ann.updatedAt = Date.now();
                     updateSinglePageSvg(pageNum);
                 }
             } else if (mode === 'laser-hl' && previewNode) {
@@ -1762,35 +2302,28 @@
                 if (dist > 0.01) {
                     const color = document.getElementById('v4-pencil-color')?.value || '#ef4444';
                     const sw = parseInt(document.getElementById('v4-pencil-size')?.value) || 4;
-                    const newId = 'draw_' + Date.now();
-                    activeReaderBook.annotations.push({
-                        id: newId,
-                        page: pageNum,
-                        type: 'drawing',
-                        shapeType: studioTool,
-                        color,
-                        strokeWidth: sw,
-                        points: livePoints,
-                        createdAt: Date.now()
-                    });
+                    const newId = 'draw_' + Date.now() + '_' + Math.floor(Math.random() * 999);
+                    const createdAnn = {
+                        id: newId, page: pageNum, type: 'drawing', shapeType: studioTool,
+                        color, strokeWidth: sw, points: livePoints,
+                        createdAt: Date.now(), updatedAt: Date.now()
+                    };
+                    activeReaderBook.annotations.push(createdAnn);
                     selectedShapeId = newId;
                     activeReaderBook.rev = (activeReaderBook.rev || 1) + 1;
+                    activeReaderBook.lastModified = Date.now();
                     activeReaderBook.pendingCloudSync = true;
                     saveReaderMeta();
+                    showClickedItemInspectorBar(createdAnn, e.clientX, e.clientY);
                 }
                 updateSinglePageSvg(pageNum);
                 document.getElementById('v4-delete-sel-btn')?.classList.toggle('hidden', !selectedShapeId);
             } else if (mode === 'move' || mode === 'resize-pt' || mode === 'resize-rect') {
                 if (activeReaderBook) {
                     activeReaderBook.rev = (activeReaderBook.rev || 1) + 1;
+                    activeReaderBook.lastModified = Date.now();
                     activeReaderBook.pendingCloudSync = true;
                     saveReaderMeta();
-                }
-                if (dist < 0.006 && mode === 'move') {
-                    const ann = activeReaderBook?.annotations?.find(a => a.id === activeAnnId);
-                    if (ann && (ann.note || ann.attachmentId)) {
-                        openLineItemViewerModal(ann.id);
-                    }
                 }
             } else if (mode === 'laser-hl') {
                 if (dist > 0.015) {
@@ -1814,10 +2347,7 @@
                     }
                 } else {
                     previewNode?.remove();
-                    const flBar = document.getElementById('reader-floating-sel-bar');
-                    if (flBar && !flBar.classList.contains('hidden')) {
-                        flBar.classList.add('hidden');
-                    }
+                    document.getElementById('reader-floating-sel-bar')?.classList.add('hidden');
                 }
             }
 
@@ -1831,9 +2361,7 @@
         const targetPage = pendingLaserSelection.page;
         const newAnn = {
             id: 'ann_' + Date.now() + '_' + Math.floor(Math.random() * 999),
-            page: targetPage,
-            type,
-            color: activeHighlightColor,
+            page: targetPage, type, color: activeHighlightColor,
             text: pendingLaserSelection.text || `Highlighted Passage on Page ${targetPage}`,
             note: extra.note || '',
             attachmentId: extra.attachmentId || '',
@@ -1846,12 +2374,13 @@
                 w: pendingLaserSelection.w,
                 h: pendingLaserSelection.h
             }],
-            createdAt: Date.now()
+            createdAt: Date.now(), updatedAt: Date.now()
         };
 
         if (!Array.isArray(activeReaderBook.annotations)) activeReaderBook.annotations = [];
         activeReaderBook.annotations.push(newAnn);
         activeReaderBook.rev = (activeReaderBook.rev || 1) + 1;
+        activeReaderBook.lastModified = Date.now();
         activeReaderBook.pendingCloudSync = true;
         saveReaderMeta();
 
@@ -1883,7 +2412,7 @@
 
     document.getElementById('sel-action-highlight')?.addEventListener('click', () => {
         const saved = commitLaserAnnotation('highlight');
-        if (saved) showToast(`🖍️ Highlighted on Page ${saved.page}!`);
+        if (saved) showToast(`🖍️ Highlighted on Page ${saved.page}! (Click any highlight to delete/edit)`);
     });
     document.getElementById('sel-action-bookmark')?.addEventListener('click', () => {
         const saved = commitLaserAnnotation('bookmark');
@@ -1903,10 +2432,7 @@
                 const attId = 'att_' + Date.now();
                 await idbPut('lineAttachments', { id: attId, name: file.name, mime: file.type, dataUrl: r.result });
                 const saved = commitLaserAnnotation('attachment', {
-                    attachmentId: attId,
-                    attachmentName: file.name,
-                    attachmentMime: file.type,
-                    note: `Attached: ${file.name}`
+                    attachmentId: attId, attachmentName: file.name, attachmentMime: file.type, note: `Attached: ${file.name}`
                 });
                 if (saved) showToast(`📎 Attached "${file.name}" to Page ${saved.page}!`);
             };
@@ -1922,21 +2448,12 @@
         commitLaserAnnotation('highlight');
         const today = getLocalTodayString();
         todos.unshift({
-            id: Date.now(),
-            title: `📖 ${activeReaderBook.title} (p.${p}): "${txt.slice(0, 48)}"`,
-            completed: false,
-            important: true,
-            myDayDate: today,
-            dueDate: today,
-            repeat: { type: 'none' },
-            steps: [],
-            note: txt,
-            listId: 'tasks',
-            bookId: activeReaderBook.id,
-            bookPage: p
+            id: Date.now(), title: `📖 ${activeReaderBook.title} (p.${p}): "${txt.slice(0, 48)}"`,
+            completed: false, important: true, myDayDate: today, dueDate: today,
+            repeat: { type: 'none' }, steps: [], note: txt, listId: 'tasks',
+            bookId: activeReaderBook.id, bookPage: p
         });
-        saveTodos();
-        renderTodos();
+        saveTodos(); renderTodos();
         showToast(`☑️ Added Page ${p} to To-Do List!`);
     });
     document.getElementById('sel-action-vault')?.addEventListener('click', () => {
@@ -1946,13 +2463,9 @@
         commitLaserAnnotation('highlight');
         const tasks = JSON.parse(safeGet('pages_pomodoro_tasks_v8', '[]'));
         tasks.push({
-            id: Date.now(),
-            title: `${activeReaderBook.title} (p.${p}): ${txt.slice(0, 55)}`,
+            id: Date.now(), title: `${activeReaderBook.title} (p.${p}): ${txt.slice(0, 55)}`,
             subject: activeTaskSubj || extConfig.customSubjects[0] || 'Physics',
-            type: 'revision',
-            completed: false,
-            bookId: activeReaderBook.id,
-            page: p
+            type: 'revision', completed: false, bookId: activeReaderBook.id, page: p
         });
         safeSet('pages_pomodoro_tasks_v8', JSON.stringify(tasks));
         renderTasks(activeTaskTab);
@@ -1960,7 +2473,7 @@
     });
 
     /* =========================================================================
-       6. LINE NOTE VIEWER, PAGE NAV, READING CLOCK, TOC, TTS & RED SEARCH
+       8. LINE NOTE VIEWER, PAGE NAV, READING CLOCK, TOC, TTS & RED SEARCH
        ========================================================================= */
     let activeViewingAnnId = null;
     async function openLineItemViewerModal(annId) {
@@ -1978,8 +2491,7 @@
         if (ann.attachmentId) {
             const att = await idbGet('lineAttachments', ann.attachmentId);
             if (att) {
-                attBox.classList.remove('hidden');
-                attBox.classList.add('flex');
+                attBox.classList.remove('hidden'); attBox.classList.add('flex');
                 let html = `<p class="text-xs font-bold text-emerald-400">📎 ${escapeHtml(att.name)}</p>`;
                 if ((att.mime || '').startsWith('image/')) html += `<img src="${att.dataUrl}" class="max-h-56 rounded-xl border border-slate-700 object-contain mx-auto">`;
                 else if ((att.mime || '').startsWith('audio/')) html += `<audio controls src="${att.dataUrl}" class="w-full mt-1"></audio>`;
@@ -1999,6 +2511,7 @@
         if (ann) {
             ann.note = document.getElementById('line-viewer-note-input').value.trim();
             if (ann.note && ann.type === 'highlight') ann.type = 'note';
+            ann.updatedAt = Date.now();
             saveReaderMeta();
             updateSinglePageSvg(ann.page);
             showToast("💾 Note saved!");
@@ -2011,31 +2524,6 @@
             document.getElementById('line-item-viewer-modal').classList.add('hidden');
         }
     });
-    document.getElementById('line-viewer-attach-btn')?.addEventListener('click', () => {
-        const inp = document.getElementById('line-attach-file-input');
-        inp.onchange = (ev) => {
-            const file = ev.target.files[0];
-            if (!file || !activeReaderBook || !activeViewingAnnId) return;
-            const r = new FileReader();
-            r.onload = async () => {
-                const attId = 'att_' + Date.now();
-                await idbPut('lineAttachments', { id: attId, name: file.name, mime: file.type, dataUrl: r.result });
-                const ann = activeReaderBook.annotations.find(a => a.id === activeViewingAnnId);
-                if (ann) {
-                    ann.attachmentId = attId;
-                    ann.attachmentName = file.name;
-                    ann.attachmentMime = file.type;
-                    ann.type = 'attachment';
-                    saveReaderMeta();
-                    openLineItemViewerModal(ann.id);
-                    updateSinglePageSvg(ann.page);
-                }
-            };
-            r.readAsDataURL(file);
-            inp.value = '';
-        };
-        inp.click();
-    });
 
     window.deleteAnnotationTwoWay = async function(bookId, annId) {
         const b = readerBooks.find(x => x.id === bookId);
@@ -2045,7 +2533,12 @@
         const removed = b.annotations[idx];
         if (removed.attachmentId) await idbDelete('lineAttachments', removed.attachmentId);
         b.annotations.splice(idx, 1);
+        if (!Array.isArray(b.deletedAnnotationIds)) b.deletedAnnotationIds = [];
+        if (!b.deletedAnnotationIds.includes(annId)) b.deletedAnnotationIds.push(annId);
+        if (selectedShapeId === annId) selectedShapeId = null;
+        hideClickedItemInspectorBar();
         b.rev = (b.rev || 1) + 1;
+        b.lastModified = Date.now();
         b.pendingCloudSync = true;
         saveReaderMeta();
         renderA1GlobalAnnotations();
@@ -2053,7 +2546,7 @@
             updateSinglePageSvg(removed.page || 1);
             renderBookTocAndBookmarksDrawer();
         }
-        showToast("🗑️ Deleted annotation");
+        showToast("🗑️ Highlight / Shape deleted!");
     };
 
     window.shareAnnotationItem = function(bookId, annId) {
@@ -2074,18 +2567,6 @@
     document.getElementById('reader-page-slider')?.addEventListener('change', (e) => jumpToReaderPage(parseInt(e.target.value) || 1));
     document.getElementById('reader-page-num-input')?.addEventListener('change', (e) => jumpToReaderPage(parseInt(e.target.value) || 1));
 
-    document.getElementById('reader-zoom-in-btn')?.addEventListener('click', () => {
-        readerZoom = Math.min(2.2, +(readerZoom + 0.15).toFixed(2));
-        document.getElementById('reader-zoom-label').textContent = `${Math.round(readerZoom * 100)}%`;
-        const curP = activeReaderBook?.currentPage || 1;
-        buildBookStageAndObserver().then(() => jumpToReaderPage(curP));
-    });
-    document.getElementById('reader-zoom-out-btn')?.addEventListener('click', () => {
-        readerZoom = Math.max(0.65, +(readerZoom - 0.15).toFixed(2));
-        document.getElementById('reader-zoom-label').textContent = `${Math.round(readerZoom * 100)}%`;
-        const curP = activeReaderBook?.currentPage || 1;
-        buildBookStageAndObserver().then(() => jumpToReaderPage(curP));
-    });
     document.getElementById('reader-quick-bookmark-btn')?.addEventListener('click', () => {
         if (!activeReaderBook) return;
         pendingLaserSelection = { page: activeReaderBook.currentPage, x: 0.08, y: 0.06, w: 0.84, h: 0.025, text: `Bookmarked Page ${activeReaderBook.currentPage}` };
@@ -2114,19 +2595,11 @@
                     safeSet('pages_pomodoro_stats_v8', JSON.stringify(stats));
                 }
             }
-
-            const todayBookMins = readerReadingLog[today].books[activeReaderBook.id] || 0;
-            if (activeReaderBook.remindOnTarget && activeReaderBook.dailyTargetMins > 0 && todayBookMins === activeReaderBook.dailyTargetMins) {
-                playChime('todo');
-                showToast(`🎉 Daily Reading Goal Reached (${todayBookMins}m) for "${activeReaderBook.title}"!`);
-            }
-
             updateHeaderAndSliderForCurrentPage(activeReaderBook.currentPage);
             PomoEventBus.emit('reading:minuteLogged', { bookId: activeReaderBook.id });
         }, 60000);
     }
 
-    // Bottom #1: TOC & Colored Bookmarks Drawer
     let activeTocDrawerTab = 'chapters';
     document.getElementById('reader-bottom-toc-btn')?.addEventListener('click', () => {
         document.getElementById('reader-toc-bookmarks-drawer').classList.remove('hidden');
@@ -2180,17 +2653,13 @@
                         <span class="text-[10px] font-mono font-extrabold" style="color:${color}">Page ${ann.page || 1} • ${ann.type.toUpperCase()}</span>
                         <p class="text-xs text-white mt-0.5 line-clamp-2">"${escapeHtml(ann.text || ann.note || ann.shapeType || 'Bookmark')}"</p>
                     </div>
-                    <div class="flex items-center gap-1 shrink-0">
-                        <button onclick="shareAnnotationItem('${activeReaderBook.id}', '${ann.id}')" class="bg-slate-900 text-slate-300 px-2 py-1 rounded text-xs">📤</button>
-                        <button onclick="deleteAnnotationTwoWay('${activeReaderBook.id}', '${ann.id}')" class="bg-slate-900 text-red-400 px-2 py-1 rounded text-xs">🗑️</button>
-                    </div>
+                    <button onclick="deleteAnnotationTwoWay('${activeReaderBook.id}', '${ann.id}')" class="bg-slate-900 text-red-400 px-2 py-1 rounded text-xs">🗑️</button>
                 `;
                 listEl.appendChild(card);
             });
         }
     }
 
-    // Bottom #2: Read Aloud TTS
     async function extractTextOfPage(pageNum) {
         if (!activeReaderBook) return '';
         if (activePdfDoc) {
@@ -2209,49 +2678,24 @@
         const text = await extractTextOfPage(activeReaderBook.currentPage);
         if (!text.trim()) { showToast("No digital text layer on this page.", true); return; }
         const bar = document.getElementById('reader-tts-bar');
-        bar.classList.remove('hidden');
-        bar.classList.add('flex');
+        bar.classList.remove('hidden'); bar.classList.add('flex');
         const utt = new SpeechSynthesisUtterance(text);
         utt.rate = parseFloat(document.getElementById('tts-rate-select')?.value || '1');
-        utt.onend = () => {
-            if (activeReaderBook && activeReaderBook.currentPage < activeReaderBook.totalPages) {
-                jumpToReaderPage(activeReaderBook.currentPage + 1);
-                startTtsReadingCurrentPage();
-            }
-        };
         window.speechSynthesis.speak(utt);
-        document.getElementById('tts-play-pause-btn').textContent = '⏸ Pause';
     }
-
     function stopTtsReading() {
         if ('speechSynthesis' in window) window.speechSynthesis.cancel();
         document.getElementById('reader-tts-bar')?.classList.add('hidden');
     }
-
     document.getElementById('reader-bottom-tts-btn')?.addEventListener('click', startTtsReadingCurrentPage);
-    document.getElementById('tts-play-pause-btn')?.addEventListener('click', (e) => {
-        if (!('speechSynthesis' in window)) return;
-        if (window.speechSynthesis.paused) { window.speechSynthesis.resume(); e.currentTarget.textContent = '⏸ Pause'; }
-        else if (window.speechSynthesis.speaking) { window.speechSynthesis.pause(); e.currentTarget.textContent = '▶️ Play'; }
-        else startTtsReadingCurrentPage();
-    });
-    document.getElementById('tts-prev-btn')?.addEventListener('click', () => {
-        if (activeReaderBook && activeReaderBook.currentPage > 1) { jumpToReaderPage(activeReaderBook.currentPage - 1); startTtsReadingCurrentPage(); }
-    });
-    document.getElementById('tts-next-btn')?.addEventListener('click', () => {
-        if (activeReaderBook && activeReaderBook.currentPage < activeReaderBook.totalPages) { jumpToReaderPage(activeReaderBook.currentPage + 1); startTtsReadingCurrentPage(); }
-    });
-    document.getElementById('tts-rate-select')?.addEventListener('change', () => { if (window.speechSynthesis?.speaking) startTtsReadingCurrentPage(); });
     document.getElementById('tts-stop-close-btn')?.addEventListener('click', stopTtsReading);
 
-    // Bottom #3: Full-Book Search with Bright Red Matched Text
     document.getElementById('reader-bottom-search-btn')?.addEventListener('click', () => {
         document.getElementById('reader-fullsearch-drawer').classList.remove('hidden');
         document.getElementById('fullbook-search-input').focus();
     });
     document.getElementById('close-fullsearch-drawer-btn')?.addEventListener('click', () => document.getElementById('reader-fullsearch-drawer').classList.add('hidden'));
-
-    async function executeFullBookRedSearch() {
+    document.getElementById('fullbook-search-run-btn')?.addEventListener('click', async () => {
         const q = (document.getElementById('fullbook-search-input')?.value || '').trim();
         const resEl = document.getElementById('fullbook-search-results');
         const stEl = document.getElementById('fullbook-search-status');
@@ -2277,16 +2721,13 @@
             }
         }
         stEl.innerHTML = `Found <b class="text-red-400">${matches}</b> page(s) matching <span class="text-red-500 font-bold">"${escapeHtml(q)}"</span>.`;
-    }
-    document.getElementById('fullbook-search-run-btn')?.addEventListener('click', executeFullBookRedSearch);
-    document.getElementById('fullbook-search-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') executeFullBookRedSearch(); });
+    });
 
     /* =========================================================================
-       7. SETTINGS 1–10 CONTROL CENTER, 6M STATS CALENDAR & 3-DOTS MENU (i-v)
+       9. SETTINGS 1–10 CONTROL CENTER & 3-DOTS MENU
        ========================================================================= */
     let selectedA10Source = 'local';
-    let calViewYear = new Date().getFullYear();
-    let calViewMonth = new Date().getMonth();
+    let calViewYear = new Date().getFullYear(), calViewMonth = new Date().getMonth();
 
     function updatePendingSyncBadge() {
         const pending = readerBooks.filter(b => b.pendingCloudSync).length;
@@ -2325,24 +2766,21 @@
         readerBooks.forEach(b => {
             (b.annotations || []).forEach(ann => {
                 if (typeFilter !== 'all' && ann.type !== typeFilter) return;
-                if (q && !`${b.title} ${ann.text || ''} ${ann.note || ''} ${ann.attachmentName || ''}`.toLowerCase().includes(q)) return;
+                if (q && !`${b.title} ${ann.text || ''} ${ann.note || ''}`.toLowerCase().includes(q)) return;
                 allItems.push({ book: b, ann });
             });
         });
-        listEl.innerHTML = allItems.length ? '' : `<p class="text-xs text-slate-500 italic text-center p-6 bg-slate-950 rounded-2xl border border-slate-800">No matching annotations found.</p>`;
+        listEl.innerHTML = allItems.length ? '' : `<p class="text-xs text-slate-500 italic text-center p-6">No annotations found.</p>`;
         allItems.forEach(({ book, ann }) => {
             const row = document.createElement('div');
             row.className = "bg-slate-950 border border-slate-800 rounded-2xl p-3 flex items-start justify-between gap-3";
             row.style.borderLeft = `5px solid ${ann.color || '#facc15'}`;
             row.innerHTML = `
                 <div class="min-w-0 flex-1 cursor-pointer" onclick="document.getElementById('reader-master-settings-modal').classList.add('hidden'); openBookAtPage('${book.id}', ${ann.page || 1});">
-                    <span class="text-xs font-extrabold text-white">📘 ${escapeHtml(book.title)} <span class="text-emerald-400 font-mono">(Page ${ann.page || 1})</span></span>
+                    <span class="text-xs font-extrabold text-white">📘 ${escapeHtml(book.title)} (Page ${ann.page || 1})</span>
                     <p class="text-xs text-slate-300 mt-1">"${escapeHtml(ann.text || ann.note || ann.shapeType || 'Annotation')}"</p>
                 </div>
-                <div class="flex gap-1.5 shrink-0">
-                    <button onclick="shareAnnotationItem('${book.id}', '${ann.id}')" class="bg-slate-900 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-800 text-xs">📤</button>
-                    <button onclick="deleteAnnotationTwoWay('${book.id}', '${ann.id}')" class="bg-slate-900 text-red-400 px-2.5 py-1 rounded-lg border border-slate-800 text-xs">🗑️</button>
-                </div>
+                <button onclick="deleteAnnotationTwoWay('${book.id}', '${ann.id}')" class="text-red-400 text-xs px-2">🗑️</button>
             `;
             listEl.appendChild(row);
         });
@@ -2350,55 +2788,16 @@
     document.getElementById('a1-global-search-input')?.addEventListener('input', renderA1GlobalAnnotations);
     document.getElementById('a1-global-type-filter')?.addEventListener('change', renderA1GlobalAnnotations);
 
-    document.getElementById('shelf-wood-style-select')?.addEventListener('change', (e) => {
-        readerSettings.woodStyle = e.target.value;
-        saveReaderMeta();
-        renderWoodenShelf();
-    });
-    document.getElementById('settings-sort-by-select')?.addEventListener('change', (e) => {
-        readerSettings.sortBy = e.target.value;
-        const topSel = document.getElementById('shelf-sort-select');
-        if (topSel) topSel.value = e.target.value;
-        saveReaderMeta();
-        renderWoodenShelf();
-    });
-
-    document.getElementById('reader-export-backup-btn')?.addEventListener('click', () => {
-        const payload = JSON.stringify({ readerBooks, readerReadingLog, readerSettings, customShelves }, null, 2);
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(new Blob([payload], { type: 'application/json' }));
-        a.download = `Pomo_Reader_Backup_${getLocalTodayString()}.json`;
-        a.click();
-        showToast("💾 Reader Backup Downloaded!");
-    });
-    document.getElementById('reader-import-backup-btn')?.addEventListener('click', () => document.getElementById('reader-restore-json-input').click());
-    document.getElementById('reader-restore-json-input')?.addEventListener('change', (e) => {
-        const f = e.target.files[0];
-        if (!f) return;
-        const r = new FileReader();
-        r.onload = () => {
-            try {
-                const data = JSON.parse(r.result);
-                if (Array.isArray(data.readerBooks)) window.readerBooks = data.readerBooks;
-                if (data.readerReadingLog) window.readerReadingLog = data.readerReadingLog;
-                if (data.readerSettings) window.readerSettings = data.readerSettings;
-                if (Array.isArray(data.customShelves)) window.customShelves = data.customShelves;
-                saveReaderMeta();
-                renderWoodenShelf();
-                showToast("✅ Reader Backup Restored!");
-            } catch (err) { showToast("Invalid backup JSON", true); }
-        };
-        r.readAsText(f);
-    });
-
-    // Item A9: 6-Month Statistics + Live Clock & Calendar
-    setInterval(() => {
-        const now = new Date();
-        const clk = document.getElementById('a9-live-clock-display');
-        const dt = document.getElementById('a9-live-date-display');
-        if (clk) clk.textContent = now.toLocaleTimeString('en-US', { hour12: false });
-        if (dt) dt.textContent = formatDDMMYYYY(getLocalTodayString(now));
-    }, 1000);
+    function renderA6CloudConfig() {
+        const grid = document.getElementById('cloud-providers-config-grid');
+        if (!grid) return;
+        grid.innerHTML = Object.entries(readerSettings.clouds).map(([key, cfg]) => `
+            <div class="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 flex flex-col justify-between gap-2">
+                <div class="flex items-center justify-between"><span class="text-xs font-extrabold text-white">${cfg.icon} ${escapeHtml(cfg.name)}</span><span class="text-[10px] font-bold text-emerald-400">${cfg.connected ? '✅ Ready' : '⭕ Setup'}</span></div>
+                <p class="text-[11px] text-slate-400">${escapeHtml(cfg.status || '')}</p>
+            </div>
+        `).join('');
+    }
 
     function renderA9StatsAndClock() {
         document.getElementById('stat-books-on-shelf').textContent = readerBooks.length;
@@ -2406,311 +2805,68 @@
         let allMins = 0;
         Object.values(readerReadingLog).forEach(d => { allMins += (d.totalMins || 0); });
         document.getElementById('stat-total-reading-hours').textContent = `${(allMins / 60).toFixed(1)}h`;
-
-        const barsEl = document.getElementById('a9-6month-bars');
-        if (barsEl) {
-            barsEl.innerHTML = '';
-            const now = new Date();
-            const monthsData = [];
-            let sixMonthTotalMins = 0;
-            for (let i = 5; i >= 0; i--) {
-                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                const ymPrefix = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                const mLabel = d.toLocaleDateString('en-US', { month: 'short' });
-                let mMins = 0;
-                Object.keys(readerReadingLog).forEach(dateKey => {
-                    if (dateKey.startsWith(ymPrefix)) mMins += (readerReadingLog[dateKey].totalMins || 0);
-                });
-                sixMonthTotalMins += mMins;
-                monthsData.push({ label: mLabel, hours: mMins / 60 });
-            }
-            document.getElementById('stat-6m-reading-hours').textContent = `${(sixMonthTotalMins / 60).toFixed(1)}h`;
-            const maxH = Math.max(1, ...monthsData.map(m => m.hours));
-            monthsData.forEach(m => {
-                const hPct = Math.max(8, Math.round((m.hours / maxH) * 100));
-                const col = document.createElement('div');
-                col.className = "flex flex-col items-center justify-end h-full gap-1";
-                col.innerHTML = `<span class="text-[9px] font-mono font-bold text-purple-300">${m.hours.toFixed(1)}h</span><div class="w-full bg-gradient-to-t from-blue-600 to-purple-400 rounded-t-lg" style="height:${hPct}%"></div><span class="text-[10px] font-bold text-slate-400">${m.label}</span>`;
-                barsEl.appendChild(col);
-            });
-        }
-        renderA9CalendarGrid();
-    }
-
-    function renderA9CalendarGrid() {
-        const grid = document.getElementById('a9-calendar-days-grid');
-        const title = document.getElementById('cal-month-title');
-        if (!grid || !title) return;
-        const firstDay = new Date(calViewYear, calViewMonth, 1);
-        const daysInMonth = new Date(calViewYear, calViewMonth + 1, 0).getDate();
-        title.textContent = firstDay.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-        grid.innerHTML = '';
-        for (let e = 0; e < firstDay.getDay(); e++) grid.innerHTML += `<div></div>`;
-        const todayIso = getLocalTodayString();
-        for (let d = 1; d <= daysInMonth; d++) {
-            const iso = `${calViewYear}-${String(calViewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            const mins = readerReadingLog[iso]?.totalMins || 0;
-            const isToday = (iso === todayIso);
-            const activeClass = mins > 0 ? 'bg-emerald-600/35 border-emerald-500 text-emerald-200 font-extrabold' : (isToday ? 'bg-blue-600/30 border-blue-400 text-white font-bold' : 'bg-slate-900 border-slate-800 text-slate-400');
-            const cell = document.createElement('div');
-            cell.className = `p-1 rounded-lg border text-[10px] font-mono cursor-pointer ${activeClass}`;
-            cell.innerHTML = `<div>${d}</div>${mins > 0 ? `<div class="text-[8px] text-emerald-300">${mins}m</div>` : ''}`;
-            cell.onclick = () => showToast(`📅 ${formatDDMMYYYY(iso)}: ${mins} mins read`);
-            grid.appendChild(cell);
-        }
-    }
-    document.getElementById('cal-prev-month-btn')?.addEventListener('click', () => { calViewMonth--; if (calViewMonth < 0) { calViewMonth = 11; calViewYear--; } renderA9CalendarGrid(); });
-    document.getElementById('cal-next-month-btn')?.addEventListener('click', () => { calViewMonth++; if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; } renderA9CalendarGrid(); });
-
-    function renderA6CloudConfig() {
-        const grid = document.getElementById('cloud-providers-config-grid');
-        if (!grid) return;
-        const tgToken = safeGet('pages_pomodoro_tg_token', '');
-        const tgChat = safeGet('pages_pomodoro_tg_chatid', '');
-        readerSettings.clouds.telegram.connected = Boolean(tgToken && tgChat);
-        grid.innerHTML = Object.entries(readerSettings.clouds).map(([key, cfg]) => `
-            <div class="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 flex flex-col justify-between gap-2">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-extrabold text-white">${cfg.icon} ${escapeHtml(cfg.name)}</span>
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${cfg.connected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'}">${cfg.connected ? '✅ Connected' : '⭕ Setup'}</span>
-                </div>
-                <p class="text-[11px] text-slate-400">${escapeHtml(cfg.status || '')}</p>
-                <button onclick="window.connectOrConfigureCloud('${key}')" class="w-full bg-slate-900 hover:bg-slate-800 border border-slate-700 text-blue-400 text-xs font-bold py-1.5 rounded-xl">${cfg.connected ? '⚙️ Configure / Import' : `➕ Add ${cfg.name}`}</button>
-            </div>
-        `).join('');
+        document.getElementById('stat-6m-reading-hours').textContent = `${(allMins / 60).toFixed(1)}h`;
     }
 
     function renderA10MyFiles() {
         const grid = document.getElementById('a10-storage-folders-grid');
-        const listEl = document.getElementById('a10-selected-source-books');
-        if (!grid || !listEl) return;
-        grid.innerHTML = Object.entries(readerSettings.clouds).map(([key, cfg]) => {
-            const count = readerBooks.filter(b => (b.sources || []).includes(key)).length;
-            const isSel = (selectedA10Source === key);
-            return `<div onclick="window.selectA10Source('${key}')" class="p-3 rounded-2xl border cursor-pointer flex flex-col justify-between gap-1.5 ${isSel ? 'bg-blue-950/60 border-blue-500 shadow-lg' : 'bg-slate-950 border-slate-800'}"><div class="flex justify-between"><span class="text-lg">${cfg.icon}</span><span class="text-[10px] font-mono font-bold text-emerald-300">${count} Books</span></div><div><p class="text-xs font-extrabold text-white">${escapeHtml(cfg.name)}</p><p class="text-[10px] text-slate-400">${cfg.connected ? 'Real PDF Synced' : 'Click to connect'}</p></div></div>`;
+        if (!grid) return;
+        grid.innerHTML = Object.entries(readerSettings.clouds).map(([k, cfg]) => {
+            const cnt = readerBooks.filter(b => (b.sources || []).includes(k)).length;
+            return `<div class="p-3 rounded-2xl border bg-slate-950 border-slate-800 flex flex-col gap-1"><div class="flex justify-between"><span class="text-lg">${cfg.icon}</span><span class="text-[10px] font-mono text-emerald-400">${cnt} Books</span></div><p class="text-xs font-extrabold text-white">${escapeHtml(cfg.name)}</p></div>`;
         }).join('');
-
-        const curCfg = readerSettings.clouds[selectedA10Source];
-        const sourceBooks = readerBooks.filter(b => (b.sources || []).includes(selectedA10Source));
-        listEl.innerHTML = `
-            <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
-                <h5 class="text-xs font-extrabold text-white">${curCfg.icon} ${escapeHtml(curCfg.name)} (${sourceBooks.length} Books)</h5>
-                <button onclick="window.connectOrConfigureCloud('${selectedA10Source}')" class="bg-blue-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl">📂 Import / Link ${escapeHtml(curCfg.name)}</button>
-            </div>
-            ${sourceBooks.length ? sourceBooks.map(b => `
-                <div class="flex items-center justify-between bg-slate-900 p-2.5 rounded-xl border border-slate-800">
-                    <div class="min-w-0 flex-1 pr-2 cursor-pointer" onclick="document.getElementById('reader-master-settings-modal').classList.add('hidden'); openBookAtPage('${b.id}', ${b.currentPage || 1});">
-                        <p class="text-xs font-bold text-white truncate">📘 ${escapeHtml(b.title)} <span class="text-[10px] font-mono text-emerald-400">(Rev #${b.rev || 1})</span></p>
-                        <p class="text-[10px] text-slate-400">Genre: ${escapeHtml(b.shelfName || 'General')} • Page ${b.currentPage}/${b.totalPages}</p>
-                    </div>
-                    <button onclick="window.syncSingleBookToAllSources('${b.id}', false)" class="bg-emerald-600/25 text-emerald-300 border border-emerald-500/40 px-2.5 py-1 rounded-lg text-[10px] font-bold">☁️ Sync Now</button>
-                </div>
-            `).join('') : `<p class="text-xs text-slate-500 italic text-center py-6">No books linked to ${escapeHtml(curCfg.name)} yet.</p>`}
-        `;
     }
 
-    window.selectA10Source = function(key) {
-        selectedA10Source = key;
-        renderA10MyFiles();
-    };
-
-    window.connectOrConfigureCloud = async function(cloudKey) {
-        if (cloudKey === 'local') { await pickAndScanMainFolder(); renderA6CloudConfig(); renderA10MyFiles(); return; }
-        const cfg = readerSettings.clouds[cloudKey];
-        if (window.showDirectoryPicker && cloudKey !== 'telegram') {
-            try {
-                const dh = await window.showDirectoryPicker({ mode: 'readwrite' });
-                cloudDirectoryHandles[cloudKey] = dh;
-                cfg.connected = true;
-                cfg.folderName = dh.name;
-                cfg.status = `Synced Folder: ${dh.name}`;
-                await idbPut('handles', { key: 'cloud_' + cloudKey, handle: dh, name: dh.name });
-                saveReaderMeta();
-                await scanDirectoryForBooks(dh, cloudKey);
-                renderA6CloudConfig();
-                renderA10MyFiles();
-                return;
-            } catch (e) {}
-        }
-        const inp = document.getElementById('reader-book-file-input');
-        inp.onchange = (ev) => {
-            cfg.connected = true;
-            cfg.status = 'Connected (Files Imported)';
-            saveReaderMeta();
-            handleMultipleBookImport(ev.target.files, cloudKey, null);
-            renderA6CloudConfig();
-            renderA10MyFiles();
-        };
-        inp.click();
-    };
-
-    // 3-Dots Menu (i. PDF Options, ii. Controls, iii. Misc 1-11, Themes, iv. Book Info, v. Share)
     function applyReaderAppearanceAndLocks() {
         const ov = document.getElementById('reader-fullscreen-overlay');
         const vp = document.getElementById('reader-viewport');
-        const shield = document.getElementById('reader-bluelight-shield');
         if (!ov || !vp) return;
-        ov.classList.remove('theme-day', 'theme-sepia', 'theme-night', 'theme-amoled', 'orient-landscape', 'orient-portrait');
+        ov.classList.remove('theme-day', 'theme-sepia', 'theme-night', 'theme-amoled');
         ov.classList.add(`theme-${readerSettings.theme || 'night'}`);
-        if (readerSettings.orientation === 'landscape') ov.classList.add('orient-landscape');
-        if (readerSettings.orientation === 'portrait') ov.classList.add('orient-portrait');
-        vp.classList.toggle('lock-v-scroll', !!readerSettings.lockVerticalScroll);
-        vp.classList.toggle('lock-h-scroll', !!readerSettings.lockHorizontalScroll);
         vp.classList.toggle('mode-dual', readerSettings.viewMode === 'dual');
-        if (shield) {
-            const alpha = readerSettings.blueLightEnabled ? ((readerSettings.blueLightIntensity || 30) / 100) * 0.55 : 0;
-            shield.style.background = `rgba(255, 140, 0, ${alpha})`;
-        }
     }
 
     document.getElementById('reader-more-dots-btn')?.addEventListener('click', (e) => {
         e.stopPropagation();
         const menu = document.getElementById('reader-three-dots-menu');
-        menu.classList.toggle('hidden');
-        menu.classList.toggle('flex');
+        menu.classList.toggle('hidden'); menu.classList.toggle('flex');
     });
 
     document.querySelectorAll('.dots-menu-item').forEach(item => {
         item.addEventListener('click', (e) => {
             const sub = e.currentTarget.getAttribute('data-sub');
             document.getElementById('reader-three-dots-menu').classList.add('hidden');
-            openReaderSubOptionModal(sub);
+            const modal = document.getElementById('reader-suboptions-modal');
+            const titleEl = document.getElementById('suboptions-modal-title');
+            const bodyEl = document.getElementById('suboptions-modal-body');
+
+            if (sub === 'sub-pdf-options') {
+                titleEl.textContent = "📄 i. PDF Options (View Mode)";
+                bodyEl.innerHTML = ['scroll', 'dual', 'single'].map(m => `<button type="button" onclick="window.setReaderViewMode('${m}')" class="w-full p-3 rounded-xl border text-left text-xs font-bold ${readerSettings.viewMode === m ? 'bg-blue-600 text-white' : 'bg-slate-950 text-slate-300 border-slate-800'}">${m.toUpperCase()} MODE</button>`).join('');
+            } else if (sub === 'sub-themes-options') {
+                titleEl.textContent = "🎨 Reading Themes";
+                bodyEl.innerHTML = ['night', 'amoled', 'sepia', 'day'].map(t => `<button type="button" onclick="window.setReaderTheme('${t}')" class="w-full p-3 rounded-xl border text-left text-xs font-bold ${readerSettings.theme === t ? 'bg-blue-600 text-white' : 'bg-slate-950 text-slate-300 border-slate-800'}">${t.toUpperCase()} THEME</button>`).join('');
+            } else if (sub === 'sub-book-info' && activeReaderBook) {
+                titleEl.textContent = "ℹ️ iv. Book Information";
+                bodyEl.innerHTML = `<div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs flex flex-col gap-2"><div>Title: <b>${escapeHtml(activeReaderBook.title)}</b></div><div>Genre: <b class="text-amber-300">${escapeHtml(activeReaderBook.shelfName || 'General')}</b></div><div>Page: <b>${activeReaderBook.currentPage} / ${activeReaderBook.totalPages} (${activeReaderBook.progressPct}%)</b></div><div>Annotations: <b>${(activeReaderBook.annotations || []).length}</b></div></div>`;
+            } else {
+                titleEl.textContent = "🛠️ Reader Controls";
+                bodyEl.innerHTML = `<p class="text-xs text-slate-300">All standalone protections and sync rules are active.</p>`;
+            }
+            modal.classList.remove('hidden');
         });
     });
 
-    window.openReaderSubOptionModal = function(subType) {
-        if (!activeReaderBook) return;
-        const modal = document.getElementById('reader-suboptions-modal');
-        const titleEl = document.getElementById('suboptions-modal-title');
-        const bodyEl = document.getElementById('suboptions-modal-body');
-        const b = activeReaderBook;
-
-        if (subType === 'sub-pdf-options') {
-            titleEl.textContent = "📄 i. PDF Options — View Mode";
-            bodyEl.innerHTML = [
-                { id: 'scroll', label: '📜 Continuous Vertical Scroll' },
-                { id: 'slide', label: '👉 Horizontal Page Slide' },
-                { id: 'dual', label: '📖 Dual-Page Desktop Spread (2 Pages)' },
-                { id: 'single', label: '📄 Single Page Fit to Screen' }
-            ].map(m => `<button type="button" onclick="window.setReaderViewMode('${m.id}')" class="w-full p-3 rounded-xl border text-left text-xs font-bold flex justify-between ${readerSettings.viewMode === m.id ? 'bg-blue-600 text-white border-blue-400' : 'bg-slate-950 text-slate-300 border-slate-800'}"><span>${m.label}</span><span>${readerSettings.viewMode === m.id ? '✓' : ''}</span></button>`).join('');
-        } else if (subType === 'sub-control-options') {
-            titleEl.textContent = "📱 ii. Control Options — Screen Orientation";
-            bodyEl.innerHTML = [
-                { id: 'auto', label: '🔄 Auto (Responsive Window)' },
-                { id: 'landscape', label: '🖥️ Landscape Wide View' },
-                { id: 'portrait', label: '📱 Portrait Book View' }
-            ].map(o => `<button type="button" onclick="window.setReaderOrientation('${o.id}')" class="w-full p-3 rounded-xl border text-left text-xs font-bold flex justify-between ${readerSettings.orientation === o.id ? 'bg-blue-600 text-white border-blue-400' : 'bg-slate-950 text-slate-300 border-slate-800'}"><span>${o.label}</span><span>${readerSettings.orientation === o.id ? '✓' : ''}</span></button>`).join('');
-        } else if (subType === 'sub-misc-options') {
-            titleEl.textContent = "🛠️ iii. Miscellaneous (Controls 1 to 11)";
-            bodyEl.innerHTML = `
-                <div class="flex flex-col gap-2 text-xs">
-                    <div class="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800"><span>1. Keep Screen On Always</span><span class="bg-emerald-600 text-white px-2.5 py-1 rounded-lg font-bold text-[10px]">Strictly ON</span></div>
-                    <div class="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800"><span>2. Open Last Seen Page on Startup</span><button type="button" onclick="window.toggleMiscStartMode('last')" class="px-3 py-1 rounded-lg font-bold ${b.openMode !== 'beginning' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}">${b.openMode !== 'beginning' ? 'ON' : 'OFF'}</button></div>
-                    <div class="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800"><span>3. Open from Beginning on Startup</span><button type="button" onclick="window.toggleMiscStartMode('beginning')" class="px-3 py-1 rounded-lg font-bold ${b.openMode === 'beginning' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}">${b.openMode === 'beginning' ? 'ON' : 'OFF'}</button></div>
-                    <div class="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800"><span>4. Per-Day Reading Duration Target (Mins)</span><input type="number" id="misc-daily-dur-inp" value="${b.dailyTargetMins || 30}" class="w-16 bg-slate-900 border border-slate-700 rounded-lg p-1 text-center font-mono text-white"></div>
-                    <div class="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800"><span>5. Remind After Reading Duration Completed</span><button type="button" onclick="window.toggleMiscBookProp('remindOnTarget')" class="px-3 py-1 rounded-lg font-bold ${b.remindOnTarget ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}">${b.remindOnTarget ? 'ON' : 'OFF'}</button></div>
-                    <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex flex-col gap-1.5">
-                        <div class="flex items-center justify-between"><span>6. Blue-Light Filter to Protect Eyes</span><button type="button" onclick="window.toggleMiscGlobalProp('blueLightEnabled')" class="px-3 py-1 rounded-lg font-bold ${readerSettings.blueLightEnabled ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-400'}">${readerSettings.blueLightEnabled ? 'ON' : 'OFF'}</button></div>
-                        <input type="range" id="misc-bluelight-slider" min="10" max="80" value="${readerSettings.blueLightIntensity || 30}" class="w-full accent-amber-500">
-                    </div>
-                    <div class="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800"><span>7. Disable Vertical Scrolling</span><button type="button" onclick="window.toggleMiscGlobalProp('lockVerticalScroll')" class="px-3 py-1 rounded-lg font-bold ${readerSettings.lockVerticalScroll ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-400'}">${readerSettings.lockVerticalScroll ? 'Locked' : 'Unlocked'}</button></div>
-                    <div class="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800"><span>8. Disable Horizontal Scrolling</span><button type="button" onclick="window.toggleMiscGlobalProp('lockHorizontalScroll')" class="px-3 py-1 rounded-lg font-bold ${readerSettings.lockHorizontalScroll ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-400'}">${readerSettings.lockHorizontalScroll ? 'Locked' : 'Unlocked'}</button></div>
-                    <div class="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800"><span>9. Sync This Book to Cloud Automatically</span><button type="button" onclick="window.toggleBookSyncMode('auto')" class="px-3 py-1 rounded-lg font-bold ${b.autoSync && !b.manualSyncOnly ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}">${b.autoSync && !b.manualSyncOnly ? 'Auto ON' : 'OFF'}</button></div>
-                    <div class="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800"><span>10. Sync to Cloud Manually Only</span><button type="button" onclick="window.toggleBookSyncMode('manual')" class="px-3 py-1 rounded-lg font-bold ${b.manualSyncOnly ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-400'}">${b.manualSyncOnly ? 'Manual Only' : 'OFF'}</button></div>
-                </div>
-            `;
-            document.getElementById('misc-daily-dur-inp')?.addEventListener('change', (ev) => { b.dailyTargetMins = Math.max(1, parseInt(ev.target.value) || 30); saveReaderMeta(); updateHeaderAndSliderForCurrentPage(b.currentPage); });
-            document.getElementById('misc-bluelight-slider')?.addEventListener('input', (ev) => { readerSettings.blueLightIntensity = parseInt(ev.target.value) || 30; readerSettings.blueLightEnabled = true; saveReaderMeta(); applyReaderAppearanceAndLocks(); });
-        } else if (subType === 'sub-themes-options') {
-            titleEl.textContent = "🎨 Reading Color Themes";
-            bodyEl.innerHTML = [
-                { id: 'night', label: '🌙 Night Slate (Default)' },
-                { id: 'amoled', label: '🖤 Pure AMOLED Pitch Black' },
-                { id: 'sepia', label: '📜 Warm Sepia Paper' },
-                { id: 'day', label: '☀️ Crisp Daylight White' }
-            ].map(t => `<button type="button" onclick="window.setReaderTheme('${t.id}')" class="w-full p-3 rounded-xl border text-left text-xs font-bold flex justify-between ${readerSettings.theme === t.id ? 'bg-blue-600 text-white border-blue-400' : 'bg-slate-950 text-slate-300 border-slate-800'}"><span>${t.label}</span><span>${readerSettings.theme === t.id ? '✓' : ''}</span></button>`).join('');
-        } else if (subType === 'sub-book-info') {
-            titleEl.textContent = "ℹ️ iv. Complete Book Information";
-            const stars = [1, 2, 3, 4, 5].map(s => `<button type="button" onclick="window.setBookStarRating(${s})" class="text-lg">${s <= (b.rating || 5) ? '⭐' : '☆'}</button>`).join('');
-            bodyEl.innerHTML = `
-                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 flex flex-col gap-2 text-xs">
-                    <div class="flex justify-between"><span class="text-slate-400">Book Name:</span> <b class="text-white">${escapeHtml(b.title)}</b></div>
-                    <div class="flex justify-between"><span class="text-slate-400">Genre / Shelf:</span> <b class="text-amber-300">${escapeHtml(b.shelfName || 'General')} (${b.manualGenreLock ? '🔒 Manual Priority' : 'Auto'})</b></div>
-                    <div class="flex justify-between"><span class="text-slate-400">Author Name:</span> <b class="text-white">${escapeHtml(b.author || 'Unknown')}</b></div>
-                    <div class="flex justify-between"><span class="text-slate-400">File Name:</span> <span class="font-mono text-slate-200">${escapeHtml(b.fileName)}</span></div>
-                    <div class="flex justify-between"><span class="text-slate-400">File Size:</span> <span class="font-mono text-emerald-400">${(b.fileSize / 1048576).toFixed(2)} MB</span></div>
-                    <div class="flex justify-between"><span class="text-slate-400">Total Pages:</span> <span class="font-mono text-white">${b.totalPages} Pages</span></div>
-                    <div class="flex justify-between"><span class="text-slate-400">Creator / Producer:</span> <span class="text-slate-300">${escapeHtml(b.creator || 'N/A')} / ${escapeHtml(b.producer || 'PDF')}</span></div>
-                    <div class="flex justify-between"><span class="text-slate-400">Reading Hours Logged:</span> <span class="font-mono font-bold text-amber-400">${((b.readingMins || 0) / 60).toFixed(2)} hrs (${b.readingMins || 0} mins)</span></div>
-                    <div class="flex justify-between items-center pt-1 border-t border-slate-800"><span class="text-slate-400">Book Rating:</span><div class="flex gap-1">${stars}</div></div>
-                </div>
-            `;
-        } else if (subType === 'sub-share-options') {
-            titleEl.textContent = "📤 v. Share & Export Options";
-            bodyEl.innerHTML = `
-                <button type="button" onclick="window.captureReaderPageScreenshot()" class="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 p-3.5 rounded-2xl text-left flex items-center justify-between">
-                    <div><p class="text-xs font-extrabold text-blue-400">1. Current Page Screenshot (PNG)</p><p class="text-[10px] text-slate-400">Captures Page ${b.currentPage}</p></div><span>📸</span>
-                </button>
-                <button type="button" onclick="window.sendCompleteAnnotatedBookFile()" class="w-full bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-600/50 p-3.5 rounded-2xl text-left flex items-center justify-between">
-                    <div><p class="text-xs font-extrabold text-emerald-300">2. Export Complete Annotated PDF File</p><p class="text-[10px] text-emerald-200/70">Downloads full PDF with baked-in highlights & pencil work</p></div><span>📦</span>
-                </button>
-            `;
-        }
-        modal.classList.remove('hidden');
-    };
-
-    document.getElementById('close-suboptions-modal-btn')?.addEventListener('click', () => document.getElementById('reader-suboptions-modal').classList.add('hidden'));
-
     window.setReaderViewMode = function(m) { readerSettings.viewMode = m; saveReaderMeta(); applyReaderAppearanceAndLocks(); buildBookStageAndObserver(); document.getElementById('reader-suboptions-modal').classList.add('hidden'); };
-    window.setReaderOrientation = function(o) { readerSettings.orientation = o; saveReaderMeta(); applyReaderAppearanceAndLocks(); document.getElementById('reader-suboptions-modal').classList.add('hidden'); };
     window.setReaderTheme = function(t) { readerSettings.theme = t; saveReaderMeta(); applyReaderAppearanceAndLocks(); document.getElementById('reader-suboptions-modal').classList.add('hidden'); };
-    window.toggleMiscStartMode = function(mode) { if (activeReaderBook) { activeReaderBook.openMode = mode; saveReaderMeta(); openReaderSubOptionModal('sub-misc-options'); } };
-    window.toggleMiscBookProp = function(prop) { if (activeReaderBook) { activeReaderBook[prop] = !activeReaderBook[prop]; saveReaderMeta(); openReaderSubOptionModal('sub-misc-options'); } };
-    window.toggleMiscGlobalProp = function(prop) { readerSettings[prop] = !readerSettings[prop]; saveReaderMeta(); applyReaderAppearanceAndLocks(); openReaderSubOptionModal('sub-misc-options'); };
-    window.toggleBookSyncMode = function(mode) {
-        if (!activeReaderBook) return;
-        if (mode === 'manual') { activeReaderBook.manualSyncOnly = !activeReaderBook.manualSyncOnly; if (activeReaderBook.manualSyncOnly) activeReaderBook.autoSync = false; }
-        else { activeReaderBook.autoSync = !activeReaderBook.autoSync; if (activeReaderBook.autoSync) activeReaderBook.manualSyncOnly = false; }
-        saveReaderMeta(); openReaderSubOptionModal('sub-misc-options');
-    };
-    window.setBookStarRating = function(s) { if (activeReaderBook) { activeReaderBook.rating = s; saveReaderMeta(); openReaderSubOptionModal('sub-book-info'); } };
 
-    window.captureReaderPageScreenshot = function() {
-        if (!activeReaderBook) return;
-        const card = document.querySelector(`.v4-page-card[data-page="${activeReaderBook.currentPage}"]`);
-        const pdfCanvas = card?.querySelector('canvas');
-        if (pdfCanvas) {
-            const a = document.createElement('a');
-            a.href = pdfCanvas.toDataURL('image/png');
-            a.download = `${activeReaderBook.title}_Page_${activeReaderBook.currentPage}.png`;
-            a.click();
-            showToast(`📸 Page ${activeReaderBook.currentPage} Screenshot Saved!`);
-        }
-        document.getElementById('reader-suboptions-modal').classList.add('hidden');
-    };
-
-    window.sendCompleteAnnotatedBookFile = async function() {
-        if (!activeReaderBook) return;
-        const stored = await idbGet('bookFiles', activeReaderBook.id);
-        if (!stored) return;
-        const baked = await bakeAnnotationsIntoPdfBytes(activeReaderBook, stored.originalBytes);
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(new Blob([baked], { type: 'application/pdf' }));
-        a.download = `Annotated_${activeReaderBook.fileName}`;
-        a.click();
-        document.getElementById('reader-suboptions-modal').classList.add('hidden');
-        showToast("📦 Complete Annotated Book Exported!");
-    };
-
-    // Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
         if ((e.key === 'Delete' || e.key === 'Backspace') && selectedShapeId && activeReaderBook) {
             deleteAnnotationTwoWay(activeReaderBook.id, selectedShapeId);
-            selectedShapeId = null;
         }
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && activeReaderBook) {
-            document.getElementById('v4-undo-btn')?.click();
+            window.undoLastReaderAnnotation();
         }
         if (activeReaderBook) {
             if (e.key === 'ArrowRight') jumpToReaderPage(activeReaderBook.currentPage + 1);
@@ -2719,5 +2875,7 @@
     });
 
     PomoEventBus.on('reader:openedTab', renderWoodenShelf);
+    PomoEventBus.on('hud:rendered', pushNativeAndroidWidgetPayload);
+    mountHomeContinueReadingWidget();
     hydrateBookCoversAndHandles();
 })();
